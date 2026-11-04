@@ -5,6 +5,8 @@ NC State room schedules, Fall 2026.
     python ncsu_rooms.py fetch     Download every Fall 2026 section from NC State's
                                    public Class Search and save it to data/fall2026.sqlite
     python ncsu_rooms.py serve     Open the room-schedule viewer at http://localhost:8000
+    python ncsu_rooms.py export    Rewrite static/data/schedule.json from the database
+                                   (fetch does this for you; deploy static/ anywhere)
     python ncsu_rooms.py rooms     List the rooms found (add a filter: rooms "mann")
     python ncsu_rooms.py free      List rooms with no class right now
                                    (or: free --at 2pm --for 1h --date 2026-11-05 mann)
@@ -12,7 +14,10 @@ NC State room schedules, Fall 2026.
 
 `fetch` keeps the raw responses in data/raw/2268/, so running it again only
 re-parses what's already on disk. Add --refresh to download fresh data.
-`serve` only needs the Python standard library.
+The viewer in static/ is a plain static site: it reads static/data/schedule.json
+and does everything else (room calendars, free-room search) in the browser, so it can
+be hosted on Cloudflare Workers or any static host. `serve` only needs the Python
+standard library.
 """
 from __future__ import annotations
 
@@ -30,7 +35,6 @@ from collections import Counter
 from dataclasses import dataclass, field
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 
 # --------------------------------------------------------------------------- #
 # Configuration
@@ -51,6 +55,7 @@ RAW_DIR = DATA_DIR / "raw" / str(TERM_CODE)
 DB_PATH = DATA_DIR / "fall2026.sqlite"
 ERROR_LOG = DATA_DIR / "parse_errors.log"
 STATIC_DIR = ROOT / "static"
+SCHEDULE_PATH = STATIC_DIR / "data" / "schedule.json"   # what the viewer loads
 
 # The form fields the Class Search page posts to search.php. If NC State changes
 # the form and searches start coming back empty, open the Class Search in your
@@ -680,6 +685,11 @@ def cmd_fetch(args) -> None:
                  "Check data/raw/2268/ for what Class Search sent back.")
 
     meta = build_database(courses, sections, len(subjects))
+    con = open_db()
+    try:
+        export_site(con)
+    finally:
+        con.close()
     if errors:
         ERROR_LOG.write_text("\n".join(errors) + "\n", encoding="utf-8")
     elif ERROR_LOG.exists():
@@ -692,7 +702,19 @@ def cmd_fetch(args) -> None:
         print(f"Regular term dates: {meta['term_start']} to {meta['term_end']}")
     if errors:
         print(f"{len(errors)} rows couldn't be read; details in {ERROR_LOG.relative_to(ROOT)}")
+    print(f"Wrote the viewer's data to {SCHEDULE_PATH.relative_to(ROOT)}")
     print("Next: python ncsu_rooms.py serve")
+
+
+def cmd_export(args) -> None:
+    if not DB_PATH.exists():
+        sys.exit("No data yet. Run:  python ncsu_rooms.py fetch")
+    con = open_db()
+    try:
+        size = export_site(con)
+    finally:
+        con.close()
+    print(f"Wrote {SCHEDULE_PATH.relative_to(ROOT)} ({size / 1_000_000:.1f} MB)")
 
 
 def cmd_rooms(args) -> None:
@@ -775,47 +797,21 @@ def cmd_free(args) -> None:
 
 
 class ScheduleHandler(SimpleHTTPRequestHandler):
+    """Serves static/ as-is, the same way Cloudflare (or any static host) would."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
     def log_message(self, fmt, *args):  # keep the terminal quiet
         pass
 
-    def do_GET(self):
-        url = urlparse(self.path)
-        if not url.path.startswith("/api/"):
-            return super().do_GET()
-        if not DB_PATH.exists():
-            return self.send_json({"error": "no-data"}, 503)
-        try:
-            con = open_db()
-            try:
-                if url.path == "/api/meta":
-                    return self.send_json(dict(con.execute("SELECT key, value FROM meta").fetchall()))
-                if url.path == "/api/rooms":
-                    return self.send_json(api_rooms(con))
-                if url.path == "/api/room":
-                    location = parse_qs(url.query).get("location", [""])[0]
-                    return self.send_json(api_room(con, location))
-                if url.path == "/api/free":
-                    return self.send_json(*api_free(con, parse_qs(url.query)))
-            finally:
-                con.close()
-        except Exception as exc:
-            return self.send_json({"error": str(exc)}, 500)
-        return self.send_json({"error": "not-found"}, 404)
-
-    def send_json(self, obj, status: int = 200):
-        body = json.dumps(obj).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+    def end_headers(self):
+        # Let the browser keep a copy but check for a newer one each time (answered with 304).
+        self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
 
 
-def api_rooms(con) -> list[dict]:
+def room_list(con) -> list[dict]:
     rows = con.execute(
         "SELECT location, building, room, COUNT(DISTINCT section_id) AS sections"
         " FROM meetings WHERE location IS NOT NULL AND location != '' GROUP BY location"
@@ -830,27 +826,47 @@ def api_rooms(con) -> list[dict]:
     return rooms
 
 
-def api_room(con, location: str) -> dict:
-    head = con.execute(
-        "SELECT building, room FROM meetings WHERE location = ? LIMIT 1", (location,)
-    ).fetchone()
-    if head is None:
-        return {"location": location, "building": None, "room": None, "meetings": []}
-    rows = con.execute(
+def export_site(con) -> int:
+    """Write everything the viewer needs to static/data/schedule.json; returns its size in bytes.
+
+    Sections are stored once and meetings point at them by id, which keeps the file small
+    (cross-listed and multi-day sections would otherwise repeat). Only meetings with a
+    location are included, since the viewer is organized by room.
+    """
+    meta = dict(con.execute("SELECT key, value FROM meta").fetchall())
+    sections = {}
+    for r in con.execute(
         """
-        SELECT s.id AS section_id, s.curriculum, s.number, c.title, s.section, s.component,
-               s.class_nbr, s.status, s.open_seats, s.total_seats, s.waitlist, s.instructor,
-               s.start_date, s.end_date, m.days, m.start_time, m.end_time
-        FROM meetings m
-        JOIN sections s ON s.id = m.section_id
+        SELECT s.id, s.curriculum, s.number, c.title, s.section, s.component, s.class_nbr,
+               s.status, s.open_seats, s.total_seats, s.waitlist, s.instructor,
+               s.start_date, s.end_date
+        FROM sections s
         LEFT JOIN courses c ON c.curriculum = s.curriculum AND c.number = s.number
-        WHERE m.location = ?
-        ORDER BY m.start_time, s.curriculum, s.number, s.section
-        """,
-        (location,),
-    ).fetchall()
-    return {"location": location, "building": head["building"], "room": head["room"],
-            "meetings": [dict(r) for r in rows]}
+        WHERE s.id IN (SELECT section_id FROM meetings WHERE location IS NOT NULL AND location != '')
+        """
+    ):
+        row = dict(r)
+        sections[str(row.pop("id"))] = row
+    meetings = [
+        [r["section_id"], r["location"], r["days"], r["start_time"], r["end_time"]]
+        for r in con.execute(
+            "SELECT section_id, location, days, start_time, end_time FROM meetings"
+            " WHERE location IS NOT NULL AND location != '' ORDER BY id"
+        )
+    ]
+    data = {
+        "meta": meta,
+        "rooms": room_list(con),
+        "sections": sections,
+        # [section id, location, days, start "HH:MM" or null, end "HH:MM" or null]
+        "meetings": meetings,
+    }
+    body = json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    SCHEDULE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = SCHEDULE_PATH.with_suffix(".tmp")
+    tmp.write_bytes(body)
+    os.replace(tmp, SCHEDULE_PATH)
+    return len(body)
 
 
 # --------------------------------------------------------------------------- #
@@ -963,25 +979,12 @@ def find_free_rooms(con, date: dt.date, start: int, minutes: int) -> dict:
     }
 
 
-def api_free(con, params: dict) -> tuple[dict, int]:
-    """Read ?date=YYYY-MM-DD&start=HH:MM&minutes=N (each optional; defaults to now, 1 minute)."""
-    def one(name):
-        return (params.get(name) or [""])[0].strip()
-    now = dt.datetime.now()
-    try:
-        date = parse_date(one("date")) if one("date") else now.date()
-        start = parse_clock(one("start")) if one("start") else now.hour * 60 + now.minute
-        minutes = parse_duration(one("minutes")) if one("minutes") else 1
-    except ValueError as exc:
-        return {"error": str(exc)}, 400
-    if minutes < 1:
-        return {"error": "the length has to be at least 1 minute"}, 400
-    return find_free_rooms(con, date, start, minutes), 200
-
-
 def cmd_serve(args) -> None:
-    if not DB_PATH.exists():
-        print("No data yet. The viewer will open, but run  python ncsu_rooms.py fetch  first.")
+    if not SCHEDULE_PATH.exists():
+        if DB_PATH.exists():
+            cmd_export(args)  # database from an older version: write the viewer's data now
+        else:
+            print("No data yet. The viewer will open, but run  python ncsu_rooms.py fetch  first.")
     server = ThreadingHTTPServer(("127.0.0.1", args.port), ScheduleHandler)
     url = f"http://localhost:{args.port}/"
     print(f"Room schedules running at {url}  (Ctrl+C to stop)")
@@ -1005,6 +1008,9 @@ def main() -> None:
     p_fetch.add_argument("--subjects", nargs="+", metavar="CODE",
                          help="only these subjects, e.g. --subjects MAE CSC (useful for a quick test)")
     p_fetch.set_defaults(func=cmd_fetch)
+
+    p_export = sub.add_parser("export", help="write static/data/schedule.json for the viewer")
+    p_export.set_defaults(func=cmd_export)
 
     p_serve = sub.add_parser("serve", help="start the viewer")
     p_serve.add_argument("--port", type=int, default=8000)

@@ -33,6 +33,7 @@ python ncsu_rooms.py free --date 2026-11-05 --at 10:00 --for 1h # a different da
 python ncsu_rooms.py free --near talley                          # nearest free rooms first
 python ncsu_rooms.py fetch --refresh    # re-download for up-to-date enrollment
 python ncsu_rooms.py serve --port 8080  # use a different port
+python ncsu_rooms.py export             # rewrite static/data/schedule.json (fetch does this too)
 ```
 
 ## In the viewer
@@ -67,7 +68,7 @@ The **Sort** menu under the filter puts the nearest buildings first and shows ho
 one is ("350 ft", "0.4 mi").
 
 - **Nearest to me** uses your browser's location. Your browser asks for permission the first time.
-  The position stays in your browser; it isn't sent to the local server or anywhere else. It
+  The position stays in your browser; it isn't sent to the server or anywhere else. It
   refreshes every minute, so the list keeps up as you walk.
 - **Nearest to a building** sorts from a building you pick. Use this if location is off or
   inaccurate indoors.
@@ -95,8 +96,42 @@ any extra words filter by building or room, like the `rooms` command. `--near BU
    works offline. Use `--refresh` to download again.
 3. The sections are parsed and stored in a SQLite database, `data/fall2026.sqlite`, with
    `courses`, `sections`, and `meetings` tables. You can open it with any SQLite tool.
-4. `serve` runs a small local web server (standard library only) that answers
-   `/api/rooms` and `/api/room?location=...` from the database, and serves the viewer in `static/`.
+4. `fetch` then exports what the viewer needs to `static/data/schedule.json` (about 2 MB, or
+   about 230 KB compressed). The viewer in `static/` is a plain static site: it loads that one file
+   and does everything else in the browser, including the free-room search. `python ncsu_rooms.py
+   free` does the same search against the database; if you change one, change the other
+   (`find_free_rooms` in `ncsu_rooms.py`, `findFreeRooms` in `static/index.html`).
+5. `serve` is a small static file server (standard library only), so what you see locally is
+   exactly what gets deployed.
+
+## Putting it online (Cloudflare Workers)
+
+The site is just the files in `static/`, and `wrangler.jsonc` tells Cloudflare to serve them as
+static assets. No Worker code runs and no database is needed.
+
+**From GitHub.** In the Cloudflare dashboard, go to Workers & Pages, choose Create, then import
+this repository. Use these build settings:
+
+| Setting | Value |
+|---|---|
+| Build command | *(leave empty)* |
+| Deploy command | `npx wrangler deploy` |
+| Non-production branch deploy command | `npx wrangler versions upload` |
+
+Every push to `main` deploys; pushes to other branches get a preview URL.
+
+**From your computer.** Run `npx wrangler login` once, then `npx wrangler deploy`.
+
+**Updating the data.** Cloudflare doesn't run `fetch`. That keeps its build servers from sending
+a couple hundred requests to Class Search on every push. Refresh on your own computer and push
+the new export:
+
+```
+python ncsu_rooms.py fetch --refresh
+git add static/data/schedule.json
+git commit -m "Refresh schedule data"
+git push
+```
 
 ## If something looks wrong
 

@@ -355,9 +355,10 @@
   const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   const $ = (id) => document.getElementById(id);
-  const state = { meta: null, rooms: [], room: null, items: [], untimed: [], weeks: [], week: -1 };
-  // Free-room filter. mode: "all" | "now" | "at". result is the latest /api/free answer.
-  const filter = { mode: "all", result: null, free: null, error: "", seq: 0 };
+  // byLocation: location -> its meetings, each joined with its section. roomByLoc: location -> room entry.
+  const state = { meta: null, rooms: [], byLocation: new Map(), roomByLoc: new Map(), room: null, items: [], untimed: [], weeks: [], week: -1 };
+  // Free-room filter. mode: "all" | "now" | "at". result is the latest findFreeRooms() answer.
+  const filter = { mode: "all", result: null, free: null, error: "" };
   // Proximity sort. mode: "name" | "me" | "b:<building>". origin: { lat, lon, place?, accuracy? } once known.
   const sort = { mode: "name", origin: null, error: "", seq: 0 };
 
@@ -400,23 +401,23 @@
   const natural = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), undefined, { numeric: true, sensitivity: "base" });
 
   async function getJSON(url) {
-    const res = await fetch(url, { cache: "no-store" });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) { const err = new Error(body.error || res.statusText); err.code = body.error; throw err; }
-    return body;
+    const res = await fetch(url, { cache: "no-cache" }); // revalidate, so a new export shows up
+    if (!res.ok) { const err = new Error(`${res.status} ${res.statusText}`); err.status = res.status; throw err; }
+    return res.json();
   }
 
   // ---------- boot ----------
   async function boot() {
     try {
-      state.meta = await getJSON("/api/meta");
-      state.rooms = await getJSON("/api/rooms");
+      const data = await getJSON("data/schedule.json");
+      if (!data.meta || !Array.isArray(data.rooms)) throw new Error("the file isn't in the expected format");
+      indexSchedule(data);
     } catch (err) {
       $("intro").hidden = true;
       $("nodata").hidden = false;
-      if (err.code !== "no-data") {
+      if (err.status !== 404) {
         $("nodata").querySelector("h2").textContent = "The schedule data couldn't be loaded";
-        $("nodata").querySelector("p").textContent = `The local server answered: ${err.message}. Restart it with python ncsu_rooms.py serve and reload.`;
+        $("nodata").querySelector("p").textContent = `Loading data/schedule.json failed (${err.message}). Reload the page to try again.`;
       }
       $("directory").innerHTML = "";
       return;
@@ -440,6 +441,59 @@
       if (sort.mode === "me" && sort.origin) locate(true); // follow you as you walk
     }, 60_000);
     openFromHash();
+  }
+
+  // schedule.json stores each section once; meetings are [section id, location, days, start, end].
+  function indexSchedule(data) {
+    state.meta = data.meta;
+    state.rooms = data.rooms;
+    state.roomByLoc = new Map(data.rooms.map((r) => [r.location, r]));
+    state.byLocation = new Map();
+    for (const [id, location, days, start, end] of data.meetings) {
+      const sec = data.sections[id];
+      if (!sec) continue;
+      if (!state.byLocation.has(location)) state.byLocation.set(location, []);
+      state.byLocation.get(location).push({ section_id: id, ...sec, days, start_time: start, end_time: end });
+    }
+    const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+    for (const list of state.byLocation.values()) {
+      list.sort((a, b) => cmp(a.start_time ?? "", b.start_time ?? "") || cmp(a.curriculum, b.curriculum) ||
+        cmp(a.number, b.number) || cmp(a.section, b.section));
+    }
+  }
+
+  // Rooms with no class section meeting at any point in [start, start + minutes) on dateISO.
+  // A section counts on a date when that weekday is one of its meeting days and the date falls
+  // within its start and end dates. The window is cut off at midnight. Mirrors find_free_rooms()
+  // in ncsu_rooms.py, which the `free` command uses.
+  function findFreeRooms(dateISO, start, minutes) {
+    const end = Math.min(start + Math.max(1, minutes), 24 * 60);
+    const day = DAYS[(parseISO(dateISO).getDay() + 6) % 7].k;
+    const s = hhmm(start), e = hhmm(end); // "HH:MM" strings compare correctly as text
+    const rooms = new Map();
+    for (const r of state.rooms) {
+      if (r.room) rooms.set(r.location, { location: r.location, building: r.building, room: r.room, free_from: null, free_until: null });
+    }
+    const busy = new Set();
+    for (const [location, room] of rooms) {
+      for (const m of state.byLocation.get(location) ?? []) {
+        if (!m.start_time || !m.end_time || !(m.days ?? "").includes(day)) continue;
+        if ((m.start_date && m.start_date > dateISO) || (m.end_date && m.end_date < dateISO)) continue;
+        if (m.start_time < e && m.end_time > s) busy.add(location);
+        else if (m.end_time <= s) { // finished before the window: when did the room free up?
+          if (room.free_from === null || m.end_time > room.free_from) room.free_from = m.end_time;
+        } else if (room.free_until === null || m.start_time < room.free_until) {
+          room.free_until = m.start_time; // starts after the window: how long does it stay free?
+        }
+      }
+    }
+    const { term_start: ts, term_end: te } = state.meta;
+    return {
+      date: dateISO, day, start: s, end: e, minutes: end - start,
+      in_term: Boolean(ts && te && ts <= dateISO && dateISO <= te),
+      total_rooms: rooms.size,
+      rooms: [...rooms.values()].filter((r) => !busy.has(r.location)),
+    };
   }
 
   // ---------- weeks ----------
@@ -500,24 +554,11 @@
   }
 
   // moveWeek: jump the open room's calendar to the week being searched.
-  async function refreshFilter(moveWeek) {
-    const seq = ++filter.seq;
+  function refreshFilter(moveWeek) {
     const win = filterWindow();
-    filter.result = null;
-    filter.free = null;
+    filter.result = win ? findFreeRooms(win.date, win.start, Number($("fLen").value)) : null;
+    filter.free = filter.result ? new Map(filter.result.rooms.map((r) => [r.location, r])) : null;
     filter.error = filter.mode === "at" && !win ? "Pick a date and a start time." : "";
-    if (win) {
-      const q = new URLSearchParams({ date: win.date, start: hhmm(win.start), minutes: $("fLen").value });
-      try {
-        const res = await getJSON(`/api/free?${q}`);
-        if (seq !== filter.seq) return; // a newer search already started
-        filter.result = res;
-        filter.free = new Map(res.rooms.map((r) => [r.location, r]));
-      } catch (err) {
-        if (seq !== filter.seq) return;
-        filter.error = `Couldn't check which rooms are free: ${err.message}`;
-      }
-    }
     renderSummary();
     renderDirectory();
     if (state.room) {
@@ -695,11 +736,10 @@
   }
 
   // ---------- room ----------
-  async function selectRoom(loc) {
-    let data;
-    try { data = await getJSON(`/api/room?location=${encodeURIComponent(loc)}`); }
-    catch (err) { return; }
-    if (!data.meetings.length) return;
+  function selectRoom(loc) {
+    const info = state.roomByLoc.get(loc), meetings = state.byLocation.get(loc);
+    if (!info || !meetings?.length) return;
+    const data = { location: loc, building: info.building, room: info.room, meetings };
     state.room = data;
     prepareItems(data.meetings);
     document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-current", String(c.dataset.loc === loc)));

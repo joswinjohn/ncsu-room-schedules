@@ -161,7 +161,12 @@
 
   /* ---------- calendar ---------- */
   .cal-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
-  .cal { display: grid; min-width: 640px; }
+  .cal {
+    --gutter: 58px; --colmin: 112px; --ev-inset: 3px;
+    display: grid; min-width: 640px;
+    grid-template-columns: var(--gutter) repeat(var(--days, 5), minmax(var(--colmin), 1fr));
+  }
+  .room-bar { display: none; } /* phone only */
   .cal-head { display: contents; }
   .dayname {
     position: sticky; top: 0; z-index: 3;
@@ -190,6 +195,10 @@
   .ev-code { font: 600 15px/1.1 var(--cond); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ev-line { font-size: 12.5px; line-height: 1.25; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ev.short { flex-direction: row; align-items: baseline; gap: 6px; padding-top: 2px; }
+  /* Narrow blocks (phones, overlapping classes) show just the start time; the block's
+     height shows how long it runs, and tapping it gives the full details. */
+  .ev { container-type: inline-size; }
+  @container (max-width: 50px) { .ev-end { display: none; } }
   .ev.short .ev-line + .ev-line { display: none; }
   .c0 { --hue: var(--c0); } .c1 { --hue: var(--c1); } .c2 { --hue: var(--c2); }
   .c3 { --hue: var(--c3); } .c4 { --hue: var(--c4); } .c5 { --hue: var(--c5); }
@@ -232,14 +241,70 @@
   dd { margin: 0; }
 
   /* ---------- small screens ---------- */
+  /* Phones: two screens. The room list fills the page; tapping a room swaps it for a
+     full-page calendar with a back button (and the browser's back gesture works too). */
   @media (max-width: 820px) {
     .app { grid-template-columns: 1fr; }
-    .picker { position: static; height: auto; max-height: 60vh; overflow-y: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
-    #directory { flex: none; overflow: visible; }
-    .source { display: none; }
-    .view { padding: 20px 16px 32px; }
-    .placard-num { font-size: 54px; }
-    .notice { margin-top: 4vh; }
+    .picker { position: static; height: auto; border-right: 0; }
+    .app.room-open .picker { display: none; }
+    .app:not(.room-open):not(.no-data) .view { display: none; }
+    #directory { flex: none; overflow: visible; padding-bottom: 24px; }
+
+    /* Bigger touch targets. Inputs at 16px or more so iOS doesn't zoom in on focus. */
+    .search input, .f-row input, .f-row select, .week select { font-size: 16px; min-height: 44px; }
+    .seg label { padding: 12px 4px; font-size: 15px; }
+    .f-summary, .f-row > span { font-size: 14.5px; }
+    .rooms { gap: 6px; }
+    .bldg { padding: 14px 0 6px; }
+    .bldg h2 { font-size: 15.5px; margin-bottom: 9px; }
+    .chip { min-width: 60px; min-height: 44px; padding: 8px 10px 7px; font-size: 18px; }
+    .chip.wide { font-size: 14.5px; }
+    .chip small { font-size: 12px; }
+
+    .view { --bar-h: 58px; padding: 0 10px 28px; }
+    .notice { margin-top: 0; padding: 28px 6px; }
+    .room-bar {
+      display: flex; align-items: center; gap: 10px;
+      position: sticky; top: 0; z-index: 5;
+      height: var(--bar-h); margin: 0 -10px 14px; padding: 0 10px;
+      background: var(--paper); border-bottom: 1px solid var(--rule);
+    }
+    .back {
+      display: inline-flex; align-items: center; gap: 2px; flex: none;
+      min-height: 44px; padding: 0 14px 0 8px;
+      background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
+      font-weight: 600; cursor: pointer;
+    }
+    .back span { font-size: 26px; line-height: 1; margin-top: -3px; }
+    .room-bar-title { margin: 0; min-width: 0; font: 600 16px/1.2 var(--body); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .room-bar-title:focus { outline: none; }
+
+    .room-head { gap: 12px; margin-bottom: 14px; }
+    .placard { min-width: 0; padding: 10px 16px 12px; border-top-width: 5px; }
+    .placard-num { font-size: 46px; }
+    .placard-num.long { font-size: 26px; }
+    .room-info { flex-basis: 100%; min-width: 0; gap: 8px; }
+    .week { flex-wrap: nowrap; }
+    .week select { flex: 1; min-width: 0; }
+    .week button { width: 44px; height: 44px; flex: none; }
+
+    /* The whole week fits the screen: no sideways scrolling, and the day names stick
+       under the back bar while you scroll through the day. */
+    .cal-wrap { overflow: visible; }
+    .cal { min-width: 0; --gutter: 38px; --colmin: 0px; --ev-inset: 1px; }
+    .dayname, .corner { top: var(--bar-h); }
+    .dayname { padding: 7px 2px 6px; text-align: center; font-size: 15px; }
+    .dayname small { font-size: 12px; }
+    .hour { right: 5px; font-size: 11px; }
+    .ev { padding: 3px 3px 3px 5px; border-left-width: 2px; }
+    .ev-code { font-size: 13.5px; }
+    .ev-line { font-size: 11px; }
+    .ev.short { flex-direction: column; padding-top: 1px; }
+    .ev.short .ev-line { display: none; }
+
+    dialog { width: calc(100vw - 16px); }
+    .d-sec { padding: 18px 18px 16px; }
+    dl { grid-template-columns: 6.5rem 1fr; }
   }
   @media (prefers-reduced-motion: no-preference) {
     dialog[open] { animation: rise 160ms ease-out; }
@@ -248,7 +313,7 @@
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
   <aside class="picker">
     <header class="brand">
       <h1>Room schedules</h1>
@@ -311,6 +376,10 @@
     </section>
 
     <section id="roomview" hidden>
+      <div class="room-bar">
+        <button type="button" class="back" id="backBtn"><span aria-hidden="true">&#8249;</span> Rooms</button>
+        <h2 class="room-bar-title" id="barTitle" tabindex="-1"></h2>
+      </div>
       <header class="room-head">
         <div class="placard">
           <span class="placard-num" id="pNum"></span>
@@ -355,6 +424,7 @@
   const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   const $ = (id) => document.getElementById(id);
+  const PHONE = matchMedia("(max-width: 820px)"); // keep in sync with the CSS breakpoint
   // byLocation: location -> its meetings, each joined with its section. roomByLoc: location -> room entry.
   const state = { meta: null, rooms: [], byLocation: new Map(), roomByLoc: new Map(), room: null, items: [], untimed: [], weeks: [], week: -1 };
   // Free-room filter. mode: "all" | "now" | "at". result is the latest findFreeRooms() answer.
@@ -374,7 +444,7 @@
     const h = Math.floor(m / 60), mm = m % 60, h12 = ((h + 11) % 12) + 1;
     return `${h12}:${String(mm).padStart(2, "0")}${withSuffix ? (h < 12 ? " AM" : " PM") : ""}`;
   };
-  const fmtRange = (s, e) => `${fmtTime(s, false)}\u2013${fmtTime(e, false)}`;
+  const fmtRange = (s, e) => `${fmtTime(s, false)}<span class="ev-end">\u2013${fmtTime(e, false)}</span>`;
   const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
   const fmtClock = (m) => (m >= 24 * 60 ? "midnight" : fmtTime(m));
   // "2:20p", for the small free-until label on a room chip.
@@ -415,6 +485,7 @@
     } catch (err) {
       $("intro").hidden = true;
       $("nodata").hidden = false;
+      $("app").classList.add("no-data");
       if (err.status !== 404) {
         $("nodata").querySelector("h2").textContent = "The schedule data couldn't be loaded";
         $("nodata").querySelector("p").textContent = `Loading data/schedule.json failed (${err.message}). Reload the page to try again.`;
@@ -434,7 +505,16 @@
     $("prevWeek").addEventListener("click", () => stepWeek(-1));
     $("nextWeek").addEventListener("click", () => stepWeek(1));
     $("detail").addEventListener("click", (e) => { if (e.target === $("detail")) $("detail").close(); });
-    window.addEventListener("hashchange", openFromHash);
+    window.addEventListener("hashchange", () => {
+      state.fromList = !state.room; // the history entry before this one is the room list
+      openFromHash();
+    });
+    $("backBtn").addEventListener("click", () => {
+      if (state.fromList) { history.back(); return; } // closes the room via hashchange
+      // Opened straight from a link or bookmark: there's no list entry to go back to.
+      history.replaceState(null, "", location.pathname + location.search);
+      closeRoom();
+    });
     setInterval(() => {
       if (filter.mode === "now") refreshFilter(false); // re-renders the room too
       else if (state.room) renderRoom();
@@ -726,6 +806,7 @@
     else empty = `No rooms match \u201c${esc($("q").value)}\u201d. Try part of a building name, like \u201cmann\u201d or \u201cengineering\u201d.`;
     $("directory").innerHTML = html || `<p class="dir-note">${empty}</p>`;
     $("directory").querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => {
+      state.listScroll = window.scrollY; // to come back to the same spot in the list
       location.hash = encodeURIComponent(b.dataset.loc);
     }));
   }
@@ -733,6 +814,23 @@
   function openFromHash() {
     const loc = decodeURIComponent(location.hash.slice(1));
     if (loc) selectRoom(loc);
+    else closeRoom();
+  }
+
+  function closeRoom() {
+    if (!state.room) return;
+    const loc = state.room.location;
+    state.room = null;
+    $("app").classList.remove("room-open");
+    $("roomview").hidden = true;
+    $("intro").hidden = false;
+    document.title = "Room schedules, Fall 2026";
+    const chips = [...document.querySelectorAll(".chip")];
+    chips.forEach((c) => c.setAttribute("aria-current", "false"));
+    if (PHONE.matches) {
+      window.scrollTo(0, state.listScroll ?? 0);
+      chips.find((c) => c.dataset.loc === loc)?.focus({ preventScroll: true });
+    }
   }
 
   // ---------- room ----------
@@ -750,12 +848,15 @@
     $("pNum").classList.toggle("long", num.length > 6);
     $("pBldg").textContent = data.room ? data.building : "";
     $("pBldg").hidden = !data.room;
+    $("barTitle").textContent = data.location;
     document.title = `${data.location}, Fall 2026 room schedule`;
+    $("app").classList.add("room-open");
     if (filter.mode !== "all") syncWeekToFilter();
     renderRoom();
-    if (matchMedia("(max-width: 820px)").matches) {
-      const smooth = matchMedia("(prefers-reduced-motion: no-preference)").matches;
-      $("roomview").scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+    if (PHONE.matches) {
+      // A new screen: start at the top and tell screen readers which room this is.
+      window.scrollTo(0, 0);
+      $("barTitle").focus({ preventScroll: true });
     }
   }
 
@@ -847,7 +948,7 @@
 
     const now = new Date(), todayISO = iso(now), nowMin = now.getHours() * 60 + now.getMinutes();
     const cal = $("cal");
-    cal.style.gridTemplateColumns = `58px repeat(${days.length}, minmax(112px, 1fr))`;
+    cal.style.setProperty("--days", days.length);
     cal.style.setProperty("--hour", `${hourPx}px`);
 
     let html = `<div class="corner"></div>`;
@@ -883,7 +984,7 @@
         const dateLine = partial && it.start && it.end ? `${fmtDate(it.start)}\u2013${fmtDate(it.end)}` : "";
         const label = `${codes.join(" and ")}, ${secLine}, ${d.name} ${fmtTime(it.s)} to ${fmtTime(it.e)}${dateLine ? `, ${dateLine}` : ""}`;
         html += `<button type="button" class="ev ${hueFor(codes[0])}${h < 40 ? " short" : ""}" data-key="${esc(itemKey(it))}"
-          style="top:${y}px;height:${h}px;left:calc(${it.col * w}% + 3px);width:calc(${w}% - 6px)" aria-label="${esc(label)}">
+          style="top:${y}px;height:${h}px;left:calc(${it.col * w}% + var(--ev-inset));width:calc(${w}% - 2 * var(--ev-inset))" aria-label="${esc(label)}">
           <span class="ev-code">${esc(codes.join(" / "))}</span>
           <span class="ev-line">${fmtRange(it.s, it.e)}${h >= 58 ? "" : ` ${esc(secLine)}`}</span>
           ${h >= 58 ? `<span class="ev-line">${esc(secLine)}</span>` : ""}

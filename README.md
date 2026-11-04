@@ -44,6 +44,9 @@ python ncsu_rooms.py export             # rewrite static/data/schedule.json (fet
 - Click any block for the section, instructor, dates, and enrollment.
 - The status line ("No class until 2:20 PM") only knows about scheduled class sections, not events, exams, or study groups.
 - Each room has its own link (e.g. `http://localhost:8000/#Mann%20Hall%20406`), so you can bookmark rooms.
+- On a phone, the room list fills the screen. Tap a room for a full-page calendar of its week,
+  then tap **‹ Rooms** (or use your phone's back gesture) to return to the list where you left
+  off. The week fits the screen without sideways scrolling; tap any class for its details.
 
 ## Finding a free room
 

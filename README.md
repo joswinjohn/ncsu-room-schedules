@@ -78,18 +78,26 @@ sidebar from **List** to **Map**. Each building is a pin labeled with how many r
   matching classes meet, and the map zooms to what you found.
 - Click or tap a building for its rooms (free ones first when a filter is on), then a room for its
   calendar. **‹ Map** brings you back with that building still open, marked in red.
+- **Turn the map** with a right-drag (or Ctrl-drag) on a computer, or a two-finger twist on a
+  phone. A compass button appears while the map is turned; tap it to point north again.
+- **Your location**: the arrow button shows where you are and keeps the map centered on you as you
+  walk. Tap it again (on a phone with a compass) to turn the map with you, so the way you're facing
+  is up; a third tap turns location off. A soft cone on your dot shows which way you're facing (or
+  which way you're walking, on devices without a compass). Dragging the map stops following; tap
+  the button to recenter. iPhones ask separately for permission to use the compass. Location
+  only runs while the map is on screen.
 - When sorting by distance, the map shows your position (or the building you picked) and each
   building's distance.
 - The five sites without a known location (the CALS farm units and the Center for Marine Science)
   aren't on the map; they're still in the list.
 
-The map uses [Leaflet](https://leafletjs.com) (a copy is in `static/vendor/leaflet/`) and
-OpenStreetMap's standard map tiles, which are free for light use with attribution under the
-[tile usage policy](https://operations.osmfoundation.org/policies/tiles/). Viewing the map loads
-those tiles from OpenStreetMap's servers, so they see the visitor's IP address and which area
-is being viewed. If the site gets heavy traffic, switch `TILE_URL` in `static/index.html` to a
-provider with an account (MapTiler and Stadia have free tiers). Offline, the map shows the pins
-without the street map.
+The map uses [MapLibre GL JS](https://maplibre.org) (a copy is in `static/vendor/maplibre/`, BSD
+license) with [OpenFreeMap](https://openfreemap.org)'s vector tiles of OpenStreetMap data, which
+are free with no account or API key. Vector tiles keep street names upright when the map turns.
+Viewing the map loads the style and tiles from OpenFreeMap's servers, so they see the visitor's IP
+address and which area is being viewed. To use another provider, change `MAP_STYLES` in
+`static/index.html` to any MapLibre style URL. Offline, or if OpenFreeMap can't be reached, the map
+shows the pins on a plain background. The map needs WebGL; without it, the list still works.
 
 ## Finding a free room
 

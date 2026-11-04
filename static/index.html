@@ -8,273 +8,321 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="Rooms">
-<meta name="theme-color" content="#F6F7F5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121618" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FAFAF9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&display=swap" rel="stylesheet">
 <style>
+  /* Design tokens. Neutral surfaces, one accent (NC State red) used sparingly: the room you're
+     looking at, "now", and focus. Borders are 1px rings drawn with box-shadow so cards and
+     controls sit on the page instead of being outlined on it. */
   :root {
-    --paper: #F6F7F5;
+    --paper: #FAFAF9;
     --surface: #FFFFFF;
-    --ink: #1E2528;
-    --muted: #5B666B;
-    --rule: #E0E4E5;
-    --rule-strong: #C7CDD0;
+    --sunken: #F2F2F0;
+    --ink: #171717;
+    --muted: #6B6B6B;
+    --faint: #A3A3A3;
+    --rule: #ECECEA;
+    --rule-strong: #DADAD7;
     --red: #CC0000;
     --on-red: #FFFFFF;
-    --placard: #1E2528;
-    --placard-ink: #F6F7F5;
-    --c0: #4156A1; --c1: #008473; --c2: #6F7D1C;
-    --c3: #D14905; --c4: #990000; --c5: #427E93;
-    --tint: 12%;
-    --body: "Barlow", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    --cond: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+    --ring: rgba(0, 0, 0, 0.08);
+    --ring-strong: rgba(0, 0, 0, 0.14);
+    --edge: 0 0 0 1px var(--ring);
+    --card: 0 0 0 1px var(--ring), 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px -2px rgba(0, 0, 0, 0.04);
+    --raised: 0 0 0 1px var(--ring), 0 1px 2px rgba(0, 0, 0, 0.06);
+    --pop: 0 0 0 1px var(--ring), 0 8px 20px -6px rgba(0, 0, 0, 0.14), 0 24px 56px -12px rgba(0, 0, 0, 0.2);
+    --focus: 0 0 0 1px var(--surface), 0 0 0 3px color-mix(in srgb, var(--red) 70%, transparent);
+    --c0: #3E5BC2; --c1: #00806F; --c2: #627019;
+    --c3: #C94A0A; --c4: #A31A1A; --c5: #36778E;
+    --tint: 10%;
+    --r-sm: 6px; --r: 8px; --r-lg: 12px; --r-xl: 16px;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --body: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --cond: var(--body);
+    --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+    --glass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.75'/%3E%3Cpath d='m10.5 10.5 3 3'/%3E%3C/svg%3E");
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper: #121618;
-      --surface: #1A1F22;
-      --ink: #E3E7E9;
-      --muted: #98A3A8;
-      --rule: #262D31;
-      --rule-strong: #384247;
-      --red: #E8423B;
-      --placard: #E3E7E9;
-      --placard-ink: #121618;
-      --c0: #8E9CE2; --c1: #45C2AF; --c2: #B5C35B;
-      --c3: #F08C4E; --c4: #E26B6B; --c5: #7FB8CB;
-      --tint: 17%;
+      --paper: #0B0B0C;
+      --surface: #141415;
+      --sunken: #1C1C1E;
+      --ink: #EDEDED;
+      --muted: #A0A0A0;
+      --faint: #6A6A6A;
+      --rule: #222224;
+      --rule-strong: #303033;
+      --red: #F2463C;
+      --ring: rgba(255, 255, 255, 0.08);
+      --ring-strong: rgba(255, 255, 255, 0.16);
+      --card: 0 0 0 1px var(--ring), 0 1px 2px rgba(0, 0, 0, 0.5);
+      --raised: 0 0 0 1px var(--ring), 0 1px 2px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      --pop: 0 0 0 1px var(--ring-strong), 0 12px 32px -8px rgba(0, 0, 0, 0.7), 0 24px 64px -12px rgba(0, 0, 0, 0.6);
+      --c0: #8FA0F0; --c1: #3FC4AE; --c2: #B4C25A;
+      --c3: #F28C52; --c4: #EE7373; --c5: #7DB9CF;
+      --tint: 16%;
       color-scheme: dark;
     }
   }
 
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   html, body { height: 100%; }
   body {
     margin: 0;
     background: var(--paper);
     color: var(--ink);
-    font: 400 15px/1.45 var(--body);
+    font: 400 14px/1.5 var(--body);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
   }
   button, input, select { font: inherit; color: inherit; }
-  :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  button { touch-action: manipulation; }
+  :focus-visible { outline: 2px solid color-mix(in srgb, var(--red) 75%, transparent); outline-offset: 2px; }
+  ::selection { background: color-mix(in srgb, var(--red) 22%, transparent); }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  a { color: inherit; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 2px; transition: text-decoration-color 150ms ease; }
+
+  /* Everything you can press shrinks a touch while held: proof the tap landed. */
+  .chip, .hit, .save, .back, .week button, .seg label, .ev, .d-close {
+    transition: transform 160ms var(--ease-out), background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
+    -webkit-user-select: none; user-select: none;
+  }
+  .chip:active, .hit:active, .save:active, .back:active, .week button:not(:disabled):active, .d-close:active { transform: scale(0.97); }
+  .ev:active { transform: scale(0.985); }
 
   /* ---------- layout ---------- */
-  .app { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 100%; }
+  .app { display: grid; grid-template-columns: 304px minmax(0, 1fr); min-height: 100%; }
   .picker {
-    position: sticky; top: 0; height: 100vh;
+    position: sticky; top: 0; height: 100vh; height: 100dvh;
     display: flex; flex-direction: column;
-    border-right: 1px solid var(--rule);
     background: var(--paper);
+    box-shadow: inset -1px 0 0 var(--rule);
   }
-  .brand { padding: 22px 20px 12px; }
-  .brand h1 { margin: 0; font: 700 28px/1 var(--cond); letter-spacing: 0.005em; }
-  .brand p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
-  .search { padding: 4px 20px 10px; }
+  .brand { display: flex; flex-direction: column; gap: 2px; padding: 22px 20px 14px; }
+  .brand h1 {
+    display: flex; align-items: center; gap: 9px;
+    margin: 0; font: 600 17px/1.2 var(--body); letter-spacing: -0.015em;
+  }
+  .brand h1::before {
+    content: ""; width: 14px; height: 14px; flex: none; border-radius: 4px;
+    background: var(--red);
+    box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.18);
+  }
+  .brand p { margin: 0 0 0 23px; color: var(--muted); font-size: 13px; }
+
+  /* Inputs: quiet until touched, then a soft ring. */
+  .search { padding: 2px 20px 12px; }
+  .search input, .f-row input, .f-row select, .week select {
+    -webkit-appearance: none; appearance: none;
+    height: 36px; padding: 0 11px;
+    background: var(--surface); border: 0; border-radius: var(--r);
+    box-shadow: var(--raised);
+    transition: box-shadow 150ms ease;
+  }
   .search input {
-    width: 100%; padding: 9px 11px;
-    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
+    width: 100%; padding-left: 34px;
+    background: var(--surface) var(--glass) no-repeat 11px 50%;
   }
-  .search input::placeholder { color: var(--muted); }
+  .search input::-webkit-search-cancel-button { cursor: pointer; }
+  .search input::placeholder { color: var(--faint); }
+  .f-row select, .week select {
+    padding-right: 30px; cursor: pointer;
+    background: var(--surface) var(--chev) no-repeat right 11px center;
+  }
+  .search input:focus, .f-row input:focus, .f-row select:focus, .week select:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 30%, transparent), 0 0 0 4px color-mix(in srgb, var(--ink) 8%, transparent);
+  }
 
   /* ---------- free-room filter ---------- */
   .filter { display: grid; gap: 8px; padding: 0 20px 12px; }
+  /* Segmented control. A single highlight slides under the checked option; it's a CSS
+     transition, so rapid clicks retarget mid-flight instead of restarting. */
   .seg {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden;
+    --n: 3; --i: 0;
+    position: relative; isolation: isolate;
+    display: grid; grid-template-columns: repeat(var(--n), 1fr);
+    padding: 3px; border-radius: 10px;
+    background: var(--sunken);
+    box-shadow: inset 0 0 0 1px var(--ring);
   }
+  .seg::before {
+    content: ""; position: absolute; z-index: -1; top: 3px; bottom: 3px; left: 3px;
+    width: calc((100% - 6px) / var(--n));
+    border-radius: 7px; background: var(--surface); box-shadow: var(--raised);
+    transform: translateX(calc(var(--i) * 100%));
+    transition: transform 240ms var(--ease-out);
+  }
+  .seg:has(input:nth-of-type(2):checked) { --i: 1; }
+  .seg:has(input:nth-of-type(3):checked) { --i: 2; }
+  /* Arrow keys move through radios many times in a row: no slide for keyboard. */
+  .seg:has(input:focus-visible)::before { transition: none; }
   .seg input { position: absolute; opacity: 0; pointer-events: none; }
-  .seg label { padding: 6px 4px; text-align: center; font: 500 13.5px/1.2 var(--body); cursor: pointer; white-space: nowrap; }
-  .seg label:not(:first-of-type) { border-left: 1px solid var(--rule-strong); }
-  .seg label:hover { background: var(--paper); }
-  .seg input:checked + label { background: var(--ink); color: var(--paper); }
-  .seg input:focus-visible + label { outline: 2px solid var(--red); outline-offset: -2px; }
-  .f-row { display: flex; align-items: center; gap: 6px; }
-  .f-row > span { color: var(--muted); font-size: 13.5px; flex: none; }
-  .f-row input, .f-row select {
-    flex: 1; min-width: 0; padding: 6px 8px;
-    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
+  .seg label {
+    padding: 5px 4px; border-radius: 7px; text-align: center;
+    font: 500 13px/1.3 var(--body); color: var(--muted);
+    cursor: pointer; white-space: nowrap;
   }
-  .f-summary { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .seg input:checked + label { color: var(--ink); }
+  .seg input:focus-visible + label { outline: 2px solid color-mix(in srgb, var(--red) 75%, transparent); outline-offset: 0; }
+  .f-row { display: flex; align-items: center; gap: 8px; }
+  .f-row > span, .f-row > label > span { color: var(--muted); font-size: 13px; flex: none; }
+  .f-row > label { flex: none; min-width: 36px; }
+  .f-row input, .f-row select { flex: 1; min-width: 0; }
+  .f-summary { margin: 0; font-size: 13px; color: var(--muted); }
   .f-summary strong { color: var(--ink); font-weight: 600; }
   .f-summary .f-warn { display: block; margin-top: 4px; color: var(--c3); }
-  .f-summary .f-note { display: block; margin-top: 4px; font-size: 12.5px; }
-  .bldg h2 .n { font-weight: 400; color: var(--muted); }
-  .bldg h2 .dist { float: right; margin-left: 8px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .f-summary .f-note { display: block; margin-top: 4px; font-size: 12px; }
   .sort { grid-template-columns: minmax(0, 1fr); } /* long building names mustn't widen the sidebar */
-  .chip small { display: block; margin-top: 3px; font: 500 11px/1 var(--body); color: var(--c1); white-space: nowrap; }
-  .chip[aria-current="true"] small { color: inherit; opacity: 0.9; }
-  #directory { flex: 1; overflow-y: auto; padding: 0 20px 20px; }
-  .bldg { padding: 12px 0 4px; }
-  .bldg + .bldg { border-top: 1px solid var(--rule); }
-  .bldg h2 { margin: 0 0 7px; font: 600 14px/1.25 var(--body); }
-  .rooms { display: flex; flex-wrap: wrap; gap: 4px; }
+
+  /* ---------- room directory ---------- */
+  #directory {
+    flex: 1; overflow-y: auto; padding: 4px 20px 20px;
+    scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent;
+  }
+  .bldg { padding: 14px 0 6px; }
+  .bldg + .bldg { box-shadow: inset 0 1px 0 var(--rule); }
+  .bldg h2 { margin: 0 0 9px; font: 600 13px/1.3 var(--body); letter-spacing: -0.005em; }
+  .bldg h2 .n { font-weight: 400; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .bldg h2 .dist { float: right; margin-left: 8px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .rooms { display: flex; flex-wrap: wrap; gap: 5px; }
   .chip {
-    min-width: 46px; padding: 5px 8px 4px;
-    font: 600 15px/1 var(--cond); font-variant-numeric: tabular-nums;
-    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 3px;
+    min-width: 46px; padding: 6px 9px;
+    font: 500 13px/1.1 var(--body); font-variant-numeric: tabular-nums; letter-spacing: -0.005em;
+    background: var(--surface); border: 0; border-radius: var(--r-sm);
+    box-shadow: var(--raised);
     cursor: pointer;
   }
-  .chip:hover { border-color: var(--ink); }
-  .chip[aria-current="true"] { background: var(--red); border-color: var(--red); color: var(--on-red); }
-  .chip.wide { font-family: var(--body); font-weight: 500; font-size: 13px; }
-  .dir-note { color: var(--muted); font-size: 14px; padding: 12px 0; }
+  .chip[aria-current="true"] {
+    background: var(--red); color: var(--on-red);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--red) 80%, black), 0 1px 2px color-mix(in srgb, var(--red) 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+  .chip.wide { font-size: 12.5px; }
+  .chip small { display: block; margin-top: 3px; font: 500 11px/1 var(--body); color: var(--c1); white-space: nowrap; }
   .chip small.busy { color: var(--muted); }
+  .chip[aria-current="true"] small { color: inherit; opacity: 0.85; }
+  .dir-note { color: var(--muted); font-size: 13px; padding: 12px 0; }
 
   /* class search results */
   .hits { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
   .hit {
-    display: grid; gap: 2px; width: 100%; padding: 8px 10px; text-align: left;
-    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px; cursor: pointer;
+    display: grid; gap: 3px; width: 100%; padding: 10px 12px; text-align: left;
+    background: var(--surface); border: 0; border-radius: 10px;
+    box-shadow: var(--raised); cursor: pointer;
   }
-  .hit:hover { border-color: var(--ink); }
-  .hit-head { font: 600 16px/1.15 var(--cond); }
-  .hit-head .hit-comp { font: 500 13px/1 var(--body); color: var(--muted); }
-  .hit-title { font-size: 13.5px; line-height: 1.3; }
-  .hit-line { font-size: 12.5px; line-height: 1.3; color: var(--muted); }
-  .classes .dir-note { padding: 8px 0 0; font-size: 13px; }
-  .source { margin: 0; padding: 10px 20px 14px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12.5px; }
+  .hit-head { font: 600 14px/1.2 var(--body); letter-spacing: -0.01em; }
+  .hit-head .hit-comp { font: 400 12.5px/1 var(--body); color: var(--muted); }
+  .hit-title { font-size: 13px; line-height: 1.35; }
+  .hit-line { font-size: 12px; line-height: 1.35; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .classes .dir-note { padding: 8px 0 0; font-size: 12.5px; }
+  .source { margin: 0; padding: 12px 20px 16px; box-shadow: inset 0 1px 0 var(--rule); color: var(--faint); font-size: 12px; line-height: 1.45; }
 
-  .view { padding: 26px 30px 40px; min-width: 0; }
+  .view { padding: 24px 32px 48px; min-width: 0; }
 
   /* ---------- empty / notices ---------- */
-  .notice { max-width: 34rem; margin-top: 12vh; }
-  .notice h2 { font: 700 30px/1.1 var(--cond); margin: 0 0 10px; }
-  .notice p { margin: 0 0 10px; color: var(--muted); }
-  .notice code { font-size: 14px; background: var(--surface); border: 1px solid var(--rule); padding: 2px 6px; border-radius: 3px; color: var(--ink); }
+  .notice { max-width: 34rem; margin-top: 14vh; }
+  .notice h2 { font: 600 26px/1.15 var(--body); letter-spacing: -0.025em; margin: 0 0 10px; }
+  .notice p { margin: 0 0 10px; color: var(--muted); font-size: 15px; line-height: 1.6; }
+  .notice code { font: 500 13px/1 ui-monospace, "SF Mono", Menlo, monospace; background: var(--sunken); box-shadow: var(--edge); padding: 4px 7px; border-radius: var(--r-sm); color: var(--ink); }
 
   /* ---------- room header ---------- */
-  .room-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px 28px; margin-bottom: 18px; }
+  .room-head { display: flex; flex-wrap: wrap; align-items: stretch; gap: 16px 24px; margin-bottom: 20px; }
   .placard {
-    display: grid; gap: 6px; min-width: 210px;
-    padding: 14px 22px 16px;
-    background: var(--placard); color: var(--placard-ink);
-    border-top: 7px solid var(--red); border-radius: 2px 2px 4px 4px;
+    position: relative; overflow: hidden;
+    display: grid; align-content: end; gap: 6px; min-width: 200px;
+    padding: 20px 22px 16px;
+    background: var(--surface); color: var(--ink);
+    border-radius: var(--r-xl); box-shadow: var(--card);
   }
-  .placard-num { font: 700 68px/0.86 var(--cond); font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
-  .placard-num.long { font-size: 34px; line-height: 1; }
-  .placard-bldg { font: 500 15px/1.25 var(--body); opacity: 0.88; }
-  .room-info { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; flex: 1; min-width: 260px; } /* long week labels mustn't widen the page */
+  .placard::before { content: ""; position: absolute; top: 0; left: 22px; width: 28px; height: 3px; border-radius: 0 0 3px 3px; background: var(--red); }
+  .placard-num { font: 600 56px/0.95 var(--body); font-variant-numeric: tabular-nums; letter-spacing: -0.045em; }
+  .placard-num.long { font-size: 30px; line-height: 1.05; letter-spacing: -0.03em; }
+  .placard-bldg { font: 500 14px/1.3 var(--body); color: var(--muted); }
+  .room-info { display: grid; grid-template-columns: minmax(0, 1fr); align-content: end; gap: 12px; flex: 1; min-width: 260px; } /* long week labels mustn't widen the page */
   .room-info p { margin: 0; }
-  .status { font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .status::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
-  .status.busy::before { background: var(--red); }
-  .status.free::before { background: var(--c1); }
+  .status { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+  .status::before {
+    --dot: var(--muted);
+    content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none;
+    background: var(--dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot) 22%, transparent);
+  }
+  .status.busy::before { --dot: var(--red); }
+  .status.free::before { --dot: var(--c1); }
   .count { color: var(--muted); }
   .count-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; }
-  .save {
-    display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 0 11px;
-    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
-    font-weight: 500; font-size: 14px; cursor: pointer;
+  .save, .back, .week button {
+    background: var(--surface); border: 0; border-radius: var(--r);
+    box-shadow: var(--raised); cursor: pointer;
   }
-  .save:hover { border-color: var(--ink); }
-  .save span { font-size: 16px; line-height: 1; }
+  .save {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 10px;
+    font-weight: 500; font-size: 13px;
+  }
+  .save span { font-size: 15px; line-height: 1; color: var(--faint); transition: color 150ms ease; }
   .save[aria-pressed="true"] span { color: var(--red); }
   .week { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .week select {
-    padding: 7px 10px; min-width: 15rem;
-    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
-  }
+  .week select { min-width: 15rem; }
   .week button {
-    width: 34px; height: 34px; display: grid; place-items: center;
-    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px; cursor: pointer;
-    font-size: 18px; line-height: 1;
+    width: 36px; height: 36px; display: grid; place-items: center;
+    font-size: 18px; line-height: 1; color: var(--muted);
   }
   .week button:disabled { opacity: 0.4; cursor: default; }
-  .week button:not(:disabled):hover { border-color: var(--ink); }
+
+  /* Back to the map (desktop) or the list/map (phone). The room name is only shown on a phone,
+     where the placard can scroll out of view. */
+  .room-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .room-bar-title { display: none; }
+  .back {
+    display: inline-flex; align-items: center; gap: 2px; flex: none;
+    height: 32px; padding: 0 12px 0 8px;
+    font-weight: 500; font-size: 13px;
+  }
+  .back span[aria-hidden] { font-size: 20px; line-height: 1; margin-top: -2px; color: var(--muted); }
 
   /* ---------- calendar ---------- */
-  .cal-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  .cal-wrap { overflow-x: auto; border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--card); }
   .cal {
     --gutter: 58px; --colmin: 112px; --ev-inset: 3px;
     display: grid; min-width: 640px;
     grid-template-columns: var(--gutter) repeat(var(--days, 5), minmax(var(--colmin), 1fr));
   }
-  /* Back to the map (desktop) or the list/map (phone). The room name is only shown on a phone,
-     where the placard can scroll out of view. */
-  .room-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-  .room-bar-title { display: none; }
-  .back {
-    display: inline-flex; align-items: center; gap: 2px; flex: none;
-    min-height: 34px; padding: 0 12px 0 7px;
-    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
-    font-weight: 600; cursor: pointer;
-  }
-  .back:hover { border-color: var(--ink); }
-  .back span[aria-hidden] { font-size: 24px; line-height: 1; margin-top: -3px; }
-
-  /* ---------- campus map ---------- */
-  .viewseg { padding: 0 20px 12px; }
-  .seg.seg2 { grid-template-columns: repeat(2, 1fr); }
-  .map-fail { margin: 0; padding: 0 20px 12px; }
-  .mapview { display: grid; gap: 10px; }
-  .map-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
-  .map-head h2 { margin: 0; font: 700 26px/1.1 var(--cond); }
-  .map-note { margin: 0; color: var(--muted); font-size: 14px; }
-  #map { height: calc(100vh - 112px); min-height: 360px; border: 1px solid var(--rule); border-radius: 4px; }
-  /* Leaflet's stylesheet loads after this one, so these use #map to win. */
-  #map.leaflet-container { font: inherit; background: var(--surface); }
-  #map .leaflet-popup-content-wrapper, #map .leaflet-popup-tip { background: var(--surface); color: var(--ink); box-shadow: 0 6px 24px rgba(15, 20, 22, 0.3); }
-  #map .leaflet-popup-content-wrapper { border-radius: 6px; }
-  #map .leaflet-popup-content { margin: 14px 16px 14px; line-height: 1.4; }
-  #map a.leaflet-popup-close-button { color: var(--muted); width: 30px; height: 30px; font: 400 22px/28px var(--body); }
-  #map .leaflet-bar { border-color: var(--rule-strong); }
-  #map .leaflet-bar a { background: var(--surface); color: var(--ink); border-bottom-color: var(--rule-strong); }
-  #map .leaflet-bar a:hover { background: var(--paper); }
-  #map .leaflet-control-attribution { background: color-mix(in srgb, var(--surface) 85%, transparent); color: var(--muted); font-size: 11px; }
-  #map .leaflet-control-attribution a { color: var(--ink); }
-  .pin-wrap { background: none; border: 0; }
-  .pin {
-    display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
-    background: var(--ink); color: var(--paper); border: 2px solid var(--surface);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-    font: 700 13.5px/1 var(--cond); font-variant-numeric: tabular-nums;
-  }
-  /* OpenStreetMap only has a light style; dim and invert it to match dark mode. */
-  @media (prefers-color-scheme: dark) {
-    #map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6); }
-  }
-  .pin.free { background: var(--c1); color: #FFFFFF; }
-  .pin.none { background: var(--surface); color: var(--muted); border-color: var(--rule-strong); }
-  .pin.current { background: var(--red); color: var(--on-red); }
-  .pin.origin { box-shadow: 0 0 0 3px var(--c0), 0 1px 4px rgba(0, 0, 0, 0.35); }
-  .leaflet-marker-icon:focus { outline: none; }
-  .leaflet-marker-icon:focus-visible .pin { outline: 2px solid var(--red); outline-offset: 2px; }
-  .me-dot { fill: var(--c0); fill-opacity: 1; stroke: var(--surface); stroke-width: 3; }
-  .map-pop h3 { margin: 0 26px 2px 0; font: 700 20px/1.1 var(--cond); }
-  .map-pop p { margin: 0 0 10px; color: var(--muted); font-size: 13.5px; }
   .cal-head { display: contents; }
   .dayname {
     position: sticky; top: 0; z-index: 3;
-    padding: 9px 10px 8px; background: var(--surface);
-    border-bottom: 1px solid var(--rule-strong); border-left: 1px solid var(--rule);
-    font: 600 16px/1.1 var(--cond);
+    padding: 10px 10px 9px; background: var(--surface);
+    box-shadow: inset 0 -1px 0 var(--rule), inset 1px 0 0 var(--rule);
+    font: 600 13px/1.2 var(--body); letter-spacing: -0.005em;
   }
-  .dayname small { display: block; font: 400 13px/1.3 var(--body); color: var(--muted); }
-  .dayname.today { box-shadow: inset 0 -3px 0 var(--red); }
-  .corner { position: sticky; top: 0; z-index: 3; background: var(--surface); border-bottom: 1px solid var(--rule-strong); }
+  .dayname small { display: block; margin-top: 1px; font: 400 12px/1.3 var(--body); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .dayname.today { color: var(--red); box-shadow: inset 0 -2px 0 var(--red), inset 1px 0 0 var(--rule); }
+  .dayname.today small { color: color-mix(in srgb, var(--red) 75%, var(--muted)); }
+  .corner { position: sticky; top: 0; z-index: 3; background: var(--surface); box-shadow: inset 0 -1px 0 var(--rule); }
   .gutter { position: relative; }
-  .hour { position: absolute; right: 8px; transform: translateY(-50%); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .daycol { position: relative; border-left: 1px solid var(--rule); }
-  .daycol.off { background-color: color-mix(in srgb, var(--paper) 60%, var(--surface)); }
+  .hour { position: absolute; right: 9px; transform: translateY(-50%); font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .daycol { position: relative; box-shadow: inset 1px 0 0 var(--rule); }
+  .daycol.off { background-color: color-mix(in srgb, var(--sunken) 55%, var(--surface)); }
 
   .ev {
     --hue: var(--c0);
     position: absolute; z-index: 1;
     display: flex; flex-direction: column; gap: 1px;
-    padding: 4px 6px 4px 8px; overflow: hidden; text-align: left;
+    padding: 5px 7px 5px 10px; overflow: hidden; text-align: left;
     background: color-mix(in srgb, var(--hue) var(--tint), var(--surface));
-    border: 0; border-left: 3px solid var(--hue); border-radius: 2px 4px 4px 2px;
+    border: 0; border-radius: var(--r-sm);
+    box-shadow: inset 3px 0 0 var(--hue), inset 0 0 0 1px color-mix(in srgb, var(--hue) 9%, transparent);
     cursor: pointer;
   }
-  .ev:hover { background: color-mix(in srgb, var(--hue) calc(var(--tint) + 9%), var(--surface)); z-index: 2; }
-  .ev-code { font: 600 15px/1.1 var(--cond); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ev-line { font-size: 12.5px; line-height: 1.25; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev-code { font: 600 13px/1.2 var(--body); letter-spacing: -0.01em; color: color-mix(in srgb, var(--hue) 55%, var(--ink)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev-line { font-size: 11.5px; line-height: 1.3; color: color-mix(in srgb, var(--hue) 25%, var(--muted)); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ev.short { flex-direction: row; align-items: baseline; gap: 6px; padding-top: 2px; }
   /* Narrow blocks (phones, overlapping classes) show just the start time; the block's
      height shows how long it runs, and tapping it gives the full details. */
@@ -283,149 +331,338 @@
   .ev.short .ev-line + .ev-line { display: none; }
   .c0 { --hue: var(--c0); } .c1 { --hue: var(--c1); } .c2 { --hue: var(--c2); }
   .c3 { --hue: var(--c3); } .c4 { --hue: var(--c4); } .c5 { --hue: var(--c5); }
-  .window {
-    position: absolute; left: 0; right: 0; z-index: 0; pointer-events: none;
-    background: color-mix(in srgb, var(--c1) 13%, transparent);
-    border-block: 1px dashed var(--c1);
-  }
-  .win-note { display: flex; align-items: center; gap: 8px; color: var(--muted); }
-  .win-note::before {
-    content: ""; width: 14px; height: 10px; flex: none;
-    background: color-mix(in srgb, var(--c1) 13%, transparent); border: 1px dashed var(--c1);
-  }
-  .win-note strong { color: var(--ink); font-weight: 600; }
   .ev.hl { outline: 2px solid var(--ink); outline-offset: 1px; z-index: 3; }
-  .dayoff { position: absolute; top: 10px; left: 4px; right: 4px; text-align: center; font-size: 12.5px; line-height: 1.3; color: var(--muted); }
-  .dayoff strong { display: block; color: var(--ink); font-weight: 600; }
-  .now { position: absolute; left: -1px; right: 0; height: 2px; background: var(--red); z-index: 4; pointer-events: none; }
-  .now::before { content: ""; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
 
   /* Public events from calendar.ncsu.edu: dashed edge and a grey wash, so they don't read as classes. */
   .ev.evt {
     --hue: var(--muted);
-    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--hue) 9%, var(--surface)) 0 6px, color-mix(in srgb, var(--hue) 15%, var(--surface)) 6px 12px);
-    border-left-style: dashed;
+    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--hue) 7%, var(--surface)) 0 6px, color-mix(in srgb, var(--hue) 13%, var(--surface)) 6px 12px);
+    border-left: 2px dashed var(--hue); border-radius: 2px var(--r-sm) var(--r-sm) 2px;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hue) 14%, transparent);
   }
-  .ev.evt .ev-code { font-family: var(--body); font-weight: 600; font-size: 13px; }
+  .ev.evt .ev-code { color: var(--ink); font-weight: 500; font-size: 12.5px; }
+  .ev.evt .ev-line { color: var(--muted); }
+
+  .window {
+    position: absolute; left: 0; right: 0; z-index: 0; pointer-events: none;
+    background: color-mix(in srgb, var(--c1) 11%, transparent);
+    border-block: 1px dashed color-mix(in srgb, var(--c1) 70%, transparent);
+  }
+  .win-note { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+  .win-note::before {
+    content: ""; width: 14px; height: 10px; flex: none; border-radius: 2px;
+    background: color-mix(in srgb, var(--c1) 13%, transparent); border: 1px dashed var(--c1);
+  }
+  .win-note strong { color: var(--ink); font-weight: 600; }
+  .dayoff { position: absolute; top: 12px; left: 6px; right: 6px; margin: 0; text-align: center; font-size: 12px; line-height: 1.35; color: var(--muted); }
+  .dayoff strong { display: block; color: var(--ink); font-weight: 600; }
+  .now { position: absolute; left: -1px; right: 0; height: 2px; background: var(--red); z-index: 4; pointer-events: none; }
+  .now::before { content: ""; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 2px var(--surface); }
   .closedband {
     position: absolute; left: 0; right: 0; z-index: 0; pointer-events: none;
-    background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--muted) 14%, transparent) 0 2px, transparent 2px 9px);
+    background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--muted) 12%, transparent) 0 1px, transparent 1px 8px);
   }
-  .closedband span { position: absolute; top: 4px; left: 4px; font-size: 11px; color: var(--muted); }
+  .closedband span { position: absolute; top: 5px; left: 6px; font-size: 11px; color: var(--muted); }
 
   /* ---------- room facts and building access ---------- */
   .about { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 12px; margin: 0 0 16px; }
-  .about section { padding: 12px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; min-width: 0; }
-  .about h3 { margin: 0 0 6px; font: 600 13px/1.2 var(--body); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
-  .about p { margin: 0 0 6px; font-size: 14px; }
+  .about section { padding: 14px 16px; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--card); min-width: 0; }
+  .about h3 { margin: 0 0 8px; font: 500 11.5px/1.2 var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+  .about p { margin: 0 0 6px; font-size: 13.5px; }
   .about p:last-child { margin-bottom: 0; }
-  .about .why, .about .src { color: var(--muted); font-size: 13px; }
-  .about a { color: inherit; }
-  .type-tag { display: inline-block; padding: 2px 8px; margin-right: 6px; border-radius: 999px; font: 600 13px/1.4 var(--body); background: var(--ink); color: var(--paper); }
-  .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0; padding: 0; list-style: none; font-size: 14px; }
-  .tech { margin: 4px 0 0; font-size: 13.5px; color: var(--muted); }
-  .hours { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 4px 0 6px; font-size: 14px; }
+  .about .why, .about .src { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+  .type-tag {
+    display: inline-block; padding: 1px 9px; margin-right: 6px; border-radius: 999px;
+    font: 500 12px/1.6 var(--body); background: var(--sunken); color: var(--ink); box-shadow: var(--edge);
+  }
+  .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0; padding: 0; list-style: none; font-size: 13.5px; }
+  .tech { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+  .hours { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 4px 0 8px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
   .hours dt { color: var(--muted); }
-  .hours .today { font-weight: 600; }
-  .extra { margin: 14px 0 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
+  .hours .today { font-weight: 600; color: var(--ink); }
+  .extra { margin: 16px 0 0; color: var(--muted); font-size: 13.5px; max-width: 70ch; }
   .extra strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- campus map ---------- */
+  .viewseg { padding: 0 20px 12px; }
+  .seg.seg2 { --n: 2; }
+  .map-fail { margin: 0; padding: 0 20px 12px; }
+  .mapview { display: grid; gap: 12px; }
+  .map-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
+  .map-head h2 { margin: 0; font: 600 20px/1.2 var(--body); letter-spacing: -0.02em; }
+  .map-note { margin: 0; color: var(--muted); font-size: 13px; }
+  #map { height: calc(100vh - 104px); min-height: 360px; border-radius: var(--r-lg); box-shadow: var(--card); overflow: hidden; }
+  /* MapLibre's stylesheet loads after this one, so these use #map to win. */
+  #map.maplibregl-map { font: inherit; background: var(--surface); }
+  #map .maplibregl-popup { z-index: 3; }
+  #map .maplibregl-popup-content {
+    padding: 14px 16px; border-radius: var(--r-lg); line-height: 1.45;
+    background: var(--surface); color: var(--ink); box-shadow: var(--pop);
+  }
+  #map .maplibregl-popup-anchor-top .maplibregl-popup-tip, #map .maplibregl-popup-anchor-top-left .maplibregl-popup-tip, #map .maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--surface); }
+  #map .maplibregl-popup-anchor-bottom .maplibregl-popup-tip, #map .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip, #map .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--surface); }
+  #map .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--surface); }
+  #map .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--surface); }
+  #map .maplibregl-popup-close-button {
+    top: 8px; right: 8px; width: 28px; height: 28px; border-radius: var(--r-sm);
+    color: var(--muted); font: 400 20px/1 var(--body); transition: background-color 150ms ease, color 150ms ease;
+  }
+  .map-pop { max-height: 300px; overflow-y: auto; overscroll-behavior: contain; }
+  /* Popups grow out of the pin they belong to. */
+  #map .map-popup .maplibregl-popup-content { animation: pop-in 180ms var(--ease-out); transform-origin: 50% 100%; }
+  #map .map-popup.maplibregl-popup-anchor-top .maplibregl-popup-content, #map .map-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-content, #map .map-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-content { transform-origin: 50% 0; }
+  #map .map-popup.maplibregl-popup-anchor-left .maplibregl-popup-content { transform-origin: 0 50%; }
+  #map .map-popup.maplibregl-popup-anchor-right .maplibregl-popup-content { transform-origin: 100% 50%; }
+  #map .map-popup .maplibregl-popup-tip { animation: fade-in 180ms ease; }
+  @keyframes pop-in { from { opacity: 0; transform: scale(0.96); } }
+  @keyframes fade-in { from { opacity: 0; } }
+  /* Building name on hover (mouse only). */
+  #map .map-tip { z-index: 4; pointer-events: none; }
+  #map .map-tip .maplibregl-popup-content { padding: 4px 8px; border-radius: var(--r-sm); background: var(--ink); color: var(--paper); box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.25); font: 500 12px/1.3 var(--body); }
+  #map .map-tip.maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--ink); }
+  #map .map-tip.maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--ink); }
+  #map .map-tip.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--ink); }
+  #map .map-tip.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--ink); }
+
+  /* Map buttons: zoom, your location, compass. */
+  #map .maplibregl-ctrl-group { background: var(--surface); border-radius: var(--r); box-shadow: var(--raised); overflow: hidden; }
+  #map .maplibregl-ctrl-group button.mapbtn {
+    display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
+    background: var(--surface); color: var(--ink); border: 0; cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+  #map .maplibregl-ctrl-group button.mapbtn + button.mapbtn { border-top: 0; box-shadow: inset 0 1px 0 var(--rule); }
+  .mapbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms var(--ease-out); }
+  .mapbtn:active svg { transform: scale(0.88); }
+  .locate .i-head { display: none; }
+  .locate[data-mode="heading"] .i-loc { display: none; }
+  .locate[data-mode="heading"] .i-head { display: block; }
+  .locate[data-mode="follow"], .locate[data-mode="heading"] { color: var(--c0) !important; }
+  .locate[data-mode="follow"] .i-loc path, .locate[data-mode="heading"] .i-head path:not(.beam) { fill: currentColor; }
+  .locate[data-wait] svg { animation: locate-wait 800ms ease-in-out infinite alternate; }
+  @keyframes locate-wait { to { opacity: 0.3; } }
+  /* The compass only appears once the map is turned away from north; tap it to turn back. */
+  .compass svg { transform: none; transition: none; }
+  #map .compass-ctrl {
+    transition: opacity 180ms ease, transform 180ms var(--ease-out), visibility 0s;
+  }
+  #map:not(.rotated) .compass-ctrl {
+    opacity: 0; transform: scale(0.9); visibility: hidden; pointer-events: none;
+    transition: opacity 150ms ease, transform 150ms var(--ease-out), visibility 0s 150ms;
+  }
+  #map .maplibregl-ctrl-attrib { background: color-mix(in srgb, var(--surface) 88%, transparent); color: var(--muted); font-size: 10.5px; }
+  #map .maplibregl-ctrl-attrib a { color: var(--ink); }
+  #map .maplibregl-ctrl-attrib.maplibregl-compact { border-radius: var(--r); box-shadow: var(--edge); }
+  @media (prefers-color-scheme: dark) {
+    #map .maplibregl-ctrl-attrib-button { filter: invert(1); }
+  }
+
+  /* Building pins. The pin is a button (the marker); the number is drawn inside it. */
+  #map .pin-wrap { width: 28px; height: 28px; padding: 0; background: none; border: 0; cursor: pointer; }
+  #map .pin-wrap:focus-visible { outline: none; }
+  #map .pin-wrap:focus-visible .pin { outline: 2px solid var(--red); outline-offset: 2px; }
+  .pin {
+    display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--ink); color: var(--paper);
+    box-shadow: 0 0 0 2px var(--surface), 0 2px 6px rgba(0, 0, 0, 0.3);
+    font: 600 12px/1 var(--body); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+    transition: transform 160ms var(--ease-out);
+  }
+  .pin-wrap:active .pin { transform: scale(0.92); }
+  .pin.free { background: var(--c1); color: #FFFFFF; }
+  .pin.none { background: var(--surface); color: var(--muted); box-shadow: 0 0 0 1px var(--ring-strong), 0 1px 3px rgba(0, 0, 0, 0.2); }
+  .pin.current { background: var(--red); color: var(--on-red); }
+  .pin.origin { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--c0), 0 2px 6px rgba(0, 0, 0, 0.3); }
+
+  /* You: a dot, and a soft cone pointing the way you're facing. The marker itself is turned to
+     match your heading (relative to north, so it stays right when the map turns). */
+  #map .me { width: 22px; height: 22px; pointer-events: none; z-index: 1; }
+  .me-dot {
+    position: absolute; inset: 3px; border-radius: 50%;
+    background: var(--c0); box-shadow: 0 0 0 3px #FFFFFF, 0 1px 5px 2px rgba(0, 0, 0, 0.3);
+  }
+  .me-cone {
+    position: absolute; left: 50%; top: 50%; width: 76px; height: 64px; margin: -64px 0 0 -38px;
+    background: radial-gradient(ellipse 50% 100% at 50% 100%, color-mix(in srgb, var(--c0) 60%, transparent), transparent);
+    clip-path: polygon(50% 100%, 12% 0, 88% 0);
+    opacity: 0; transition: opacity 250ms ease;
+  }
+  .me.has-heading .me-cone { opacity: 1; }
+  .map-pop h3 { margin: 0 26px 2px 0; font: 600 16px/1.25 var(--body); letter-spacing: -0.015em; }
+  .map-pop p { margin: 0 0 10px; color: var(--muted); font-size: 12.5px; }
 
   /* ---------- details dialog ---------- */
   dialog {
     width: min(30rem, calc(100vw - 32px)); max-height: calc(100vh - 48px);
-    padding: 0; border: 1px solid var(--rule-strong); border-radius: 6px;
+    padding: 0; border: 0; border-radius: var(--r-xl);
     background: var(--surface); color: var(--ink);
-    box-shadow: 0 18px 50px rgba(15, 20, 22, 0.28);
+    box-shadow: var(--pop);
+    overscroll-behavior: contain;
   }
-  dialog::backdrop { background: rgba(18, 22, 24, 0.45); }
+  dialog::backdrop { background: rgba(8, 8, 10, 0.42); }
   .d-close {
-    position: absolute; top: 10px; right: 10px; width: 34px; height: 34px;
-    border: 0; background: transparent; border-radius: 4px; font-size: 22px; cursor: pointer; color: var(--muted);
+    position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
+    display: grid; place-items: center;
+    border: 0; background: transparent; border-radius: var(--r); font-size: 20px; line-height: 1; cursor: pointer; color: var(--muted);
   }
-  .d-close:hover { color: var(--ink); background: var(--paper); }
-  .d-sec { padding: 20px 24px 18px; }
-  .d-sec + .d-sec { border-top: 1px solid var(--rule); }
-  .d-sec h2 { margin: 0 40px 2px 0; font: 700 26px/1.05 var(--cond); }
-  .d-title { margin: 0 0 14px; color: var(--muted); }
-  dl { display: grid; grid-template-columns: 7.5rem 1fr; gap: 6px 12px; margin: 0; }
+  .d-sec { padding: 22px 24px 20px; }
+  .d-sec + .d-sec { box-shadow: inset 0 1px 0 var(--rule); }
+  .d-sec h2 { margin: 0 44px 2px 0; font: 600 21px/1.2 var(--body); letter-spacing: -0.025em; }
+  .d-title { margin: 0 0 16px; color: var(--muted); }
+  dl { display: grid; grid-template-columns: 7.5rem 1fr; gap: 8px 12px; margin: 0; font-size: 13.5px; }
   dt { color: var(--muted); }
-  dd { margin: 0; }
+  dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+  /* ---------- hover (real pointers only: a tap shouldn't leave a stuck hover) ---------- */
+  @media (hover: hover) and (pointer: fine) {
+    .chip:not([aria-current="true"]):hover, .hit:hover, .save:hover, .back:hover, .week button:not(:disabled):hover {
+      background: color-mix(in srgb, var(--sunken) 60%, var(--surface));
+      box-shadow: 0 0 0 1px var(--ring-strong), 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+    .week button:not(:disabled):hover { color: var(--ink); }
+    .seg input:not(:checked) + label:hover { color: var(--ink); }
+    .search input:hover:not(:focus), .f-row input:hover:not(:focus), .f-row select:hover:not(:focus), .week select:hover:not(:focus) {
+      box-shadow: 0 0 0 1px var(--ring-strong), 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+    .ev:hover { background: color-mix(in srgb, var(--hue) calc(var(--tint) + 7%), var(--surface)); z-index: 2; }
+    .d-close:hover { color: var(--ink); background: var(--sunken); }
+    a:hover { text-decoration-color: currentColor; }
+    #map .pin-wrap:hover { z-index: 2; }
+    #map .pin-wrap:hover .pin { transform: scale(1.12); }
+    #map .pin-wrap:active .pin { transform: scale(1.04); }
+    #map .maplibregl-ctrl-group button.mapbtn:hover { background: var(--sunken); }
+    #map .maplibregl-popup-close-button:hover { background: var(--sunken); color: var(--ink); }
+  }
 
   /* ---------- small screens ---------- */
   /* Phones: two screens. The room list fills the page; tapping a room swaps it for a
      full-page calendar with a back button (and the browser's back gesture works too). */
   @media (max-width: 820px) {
     .app { grid-template-columns: 1fr; }
-    .picker { position: static; height: auto; border-right: 0; }
+    .picker { position: static; height: auto; box-shadow: none; }
     .app.room-open .picker { display: none; }
     .app:not(.room-open):not(.no-data) .view { display: none; }
+    .brand { padding: 20px 20px 14px; }
+    .brand h1 { font-size: 19px; }
     #directory { flex: none; overflow: visible; padding-bottom: 24px; }
     .mapview { padding: 0 20px 20px; }
     .map-head h2 { display: none; }
-    .map-note { font-size: 14.5px; }
-    #map { height: 68vh; min-height: 320px; }
-    .seg.seg2 label { padding: 11px 4px; }
+    .map-note { font-size: 14px; }
+    #map { height: 68vh; height: 68dvh; min-height: 320px; }
+    #map .maplibregl-ctrl-group button.mapbtn { width: 42px; height: 42px; }
+    .mapbtn svg { width: 20px; height: 20px; }
 
     /* Bigger touch targets. Inputs at 16px or more so iOS doesn't zoom in on focus. */
-    .search input, .f-row input, .f-row select, .week select { font-size: 16px; min-height: 44px; }
-    .seg label { padding: 12px 4px; font-size: 15px; }
-    .f-summary, .f-row > span { font-size: 14.5px; }
+    .search input, .f-row input, .f-row select, .week select { font-size: 16px; height: 44px; }
+    .search input { padding-left: 36px; background-position: 12px 50%; }
+    .seg { border-radius: 12px; }
+    .seg::before { border-radius: 9px; }
+    .seg label { padding: 11px 4px; border-radius: 9px; font-size: 15px; }
+    .f-summary, .f-row > span, .f-row > label > span { font-size: 14px; }
     .rooms { gap: 6px; }
-    .bldg { padding: 14px 0 6px; }
-    .bldg h2 { font-size: 15.5px; margin-bottom: 9px; }
-    .chip { min-width: 60px; min-height: 44px; padding: 8px 10px 7px; font-size: 18px; }
-    .chip.wide { font-size: 14.5px; }
-    .chip small { font-size: 12px; }
-    .hit { padding: 10px 12px; }
-    .hit-head { font-size: 17px; }
-    .hit-title { font-size: 14.5px; }
-    .hit-line { font-size: 13.5px; }
-    .save { min-height: 44px; padding: 0 14px; font-size: 15px; }
+    .bldg { padding: 16px 0 6px; }
+    .bldg h2 { font-size: 15px; margin-bottom: 10px; }
+    .chip { min-width: 58px; min-height: 44px; padding: 8px 10px; font-size: 16px; border-radius: var(--r); }
+    .chip.wide { font-size: 14px; }
+    .chip small { font-size: 11.5px; }
+    .hit { padding: 12px 14px; border-radius: var(--r-lg); }
+    .hit-head { font-size: 15.5px; }
+    .hit-title { font-size: 14px; }
+    .hit-line { font-size: 13px; }
+    .save { height: 44px; padding: 0 16px 0 14px; font-size: 15px; }
     .dayoff { font-size: 11px; left: 1px; right: 1px; }
 
     .view { --bar-h: 58px; padding: 0 10px 28px; }
     .notice { margin-top: 0; padding: 28px 6px; }
+    /* Frosted bar: content scrolls underneath without the bar ever going opaque-flat. */
     .room-bar {
       display: flex; align-items: center; gap: 10px;
       position: sticky; top: 0; z-index: 5;
       height: var(--bar-h); margin: 0 -10px 14px; padding: 0 10px;
-      background: var(--paper); border-bottom: 1px solid var(--rule);
+      background: color-mix(in srgb, var(--paper) 82%, transparent);
+      -webkit-backdrop-filter: saturate(180%) blur(14px); backdrop-filter: saturate(180%) blur(14px);
+      box-shadow: inset 0 -1px 0 var(--rule);
     }
-    .back { min-height: 44px; padding: 0 14px 0 8px; }
-    .back span[aria-hidden] { font-size: 26px; }
-    .room-bar-title { display: block; margin: 0; min-width: 0; font: 600 16px/1.2 var(--body); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .back { height: 44px; padding: 0 16px 0 10px; font-size: 15px; }
+    .back span[aria-hidden] { font-size: 24px; }
+    .room-bar-title { display: block; margin: 0; min-width: 0; font: 600 16px/1.2 var(--body); letter-spacing: -0.015em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .room-bar-title:focus { outline: none; }
 
     .room-head { gap: 12px; margin-bottom: 14px; }
-    .placard { min-width: 0; padding: 10px 16px 12px; border-top-width: 5px; }
-    .placard-num { font-size: 46px; }
+    .placard { min-width: 0; padding: 16px 18px 14px; border-radius: 14px; }
+    .placard::before { left: 18px; }
+    .placard-num { font-size: 44px; }
     .placard-num.long { font-size: 26px; }
-    .room-info { flex-basis: 100%; min-width: 0; gap: 8px; }
+    .room-info { flex-basis: 100%; min-width: 0; gap: 10px; }
     .week { flex-wrap: nowrap; }
     .week select { flex: 1; min-width: 0; }
     .week button { width: 44px; height: 44px; flex: none; }
 
     /* The whole week fits the screen: no sideways scrolling, and the day names stick
        under the back bar while you scroll through the day. */
-    .cal-wrap { overflow: visible; }
+    .cal-wrap { overflow: visible; overflow: clip; } /* clip (unlike hidden) keeps the sticky day names working */
     .cal { min-width: 0; --gutter: 38px; --colmin: 0px; --ev-inset: 1px; }
     .dayname, .corner { top: var(--bar-h); }
-    .dayname { padding: 7px 2px 6px; text-align: center; font-size: 15px; }
-    .dayname small { font-size: 12px; }
-    .hour { right: 5px; font-size: 11px; }
-    .ev { padding: 3px 3px 3px 5px; border-left-width: 2px; }
-    .ev-code { font-size: 13.5px; }
-    .ev-line { font-size: 11px; }
+    .dayname { padding: 8px 2px 7px; text-align: center; font-size: 13.5px; }
+    .dayname small { font-size: 11.5px; }
+    .hour { right: 5px; font-size: 10.5px; }
+    .ev { padding: 3px 3px 3px 5px; border-radius: 4px; box-shadow: inset 2px 0 0 var(--hue), inset 0 0 0 1px color-mix(in srgb, var(--hue) 9%, transparent); }
+    .ev.evt { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hue) 14%, transparent); }
+    .ev-code { font-size: 12px; }
+    .ev-line { font-size: 10.5px; }
     .ev.short { flex-direction: column; padding-top: 1px; }
     .ev.short .ev-line { display: none; }
 
-    dialog { width: calc(100vw - 16px); }
-    .d-sec { padding: 18px 18px 16px; }
-    dl { grid-template-columns: 6.5rem 1fr; }
+    /* Details become a bottom sheet: closer to the thumb, and it slides from where phones
+       put sheets. */
+    dialog {
+      width: 100%; max-width: 100%; margin: auto 0 0;
+      max-height: 86vh; max-height: 86dvh;
+      border-radius: 20px 20px 0 0;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .d-sec { padding: 22px 20px 18px; }
+    .d-sec h2 { font-size: 20px; }
+    dl { grid-template-columns: 6.5rem 1fr; font-size: 14.5px; }
   }
+
+  /* ---------- dialog motion ----------
+     Enters with a short scale+fade from the center (modals aren't anchored to a trigger), exits
+     faster than it came in. On phones the sheet slides up with an iOS-like drawer curve.
+     Transitions, not keyframes, so closing mid-open reverses smoothly. */
   @media (prefers-reduced-motion: no-preference) {
-    dialog[open] { animation: rise 160ms ease-out; }
-    @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+    dialog {
+      transition: opacity 200ms var(--ease-out), transform 220ms var(--ease-out),
+        overlay 220ms allow-discrete, display 220ms allow-discrete;
+    }
+    dialog:not([open]) { opacity: 0; transform: scale(0.96); transition-duration: 140ms; }
+    @starting-style { dialog[open] { opacity: 0; transform: scale(0.96); } }
+    dialog::backdrop {
+      transition: background-color 200ms ease, overlay 220ms allow-discrete, display 220ms allow-discrete;
+    }
+    dialog:not([open])::backdrop { background-color: transparent; transition-duration: 140ms; }
+    @starting-style { dialog[open]::backdrop { background-color: transparent; } }
+
+    @media (max-width: 820px) {
+      dialog {
+        transition: transform 420ms var(--ease-drawer), opacity 200ms ease,
+          overlay 420ms allow-discrete, display 420ms allow-discrete;
+      }
+      dialog:not([open]) { opacity: 1; transform: translateY(100%); transition-duration: 260ms; }
+      @starting-style { dialog[open] { opacity: 1; transform: translateY(100%); } }
+    }
+  }
+  /* Reduced motion: keep the fades that explain what happened, drop the movement. */
+  @media (prefers-reduced-motion: reduce) {
+    .chip:active, .hit:active, .save:active, .back:active, .week button:not(:disabled):active, .d-close:active, .ev:active { transform: none; }
+    .seg::before { transition: none; }
+    #map .pin-wrap:hover .pin, .pin-wrap:active .pin, .mapbtn:active svg { transform: none; }
+    #map .map-popup .maplibregl-popup-content { animation-name: fade-in; }
+    .locate[data-wait] svg { animation: none; opacity: 0.5; }
+    #map .compass-ctrl, #map:not(.rotated) .compass-ctrl { transform: none; }
+    dialog { transition: opacity 160ms ease, overlay 160ms allow-discrete, display 160ms allow-discrete; }
+    dialog:not([open]) { opacity: 0; }
+    @starting-style { dialog[open] { opacity: 0; } }
   }
 </style>
 </head>
@@ -1210,19 +1447,23 @@
   }
 
   // ---------- campus map ----------
-  // Leaflet (static/vendor/leaflet) over OpenStreetMap's standard map tiles, loaded the first time
-  // the map is shown. The map is extra: the list stays the main, keyboard- and screen-reader-
-  // friendly way to browse, and still works if the map can't load.
-  // OpenStreetMap's tile servers are free for light use with attribution (see their tile usage
-  // policy). For heavy traffic, switch TILE_URL to a provider with an account (MapTiler, Stadia).
-  const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-  const TILE_CREDIT = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  // MapLibre GL (static/vendor/maplibre, loaded the first time the map is shown) drawing
+  // OpenFreeMap's vector tiles of OpenStreetMap data: free, with no account or key. Vector tiles
+  // keep street names upright when you turn the map. The map is extra: the list stays the main,
+  // keyboard- and screen-reader-friendly way to browse, and still works if the map can't load.
+  // If OpenFreeMap can't be reached (offline, or the service is down) the map shows the building
+  // pins on a plain background.
+  const MAP_STYLES = {
+    light: "https://tiles.openfreemap.org/styles/positron",
+    dark: "https://tiles.openfreemap.org/styles/dark",
+  };
+  const DARK = matchMedia("(prefers-color-scheme: dark)");
   // places: building -> { name, lat, lon, rooms }. shown: building -> rooms on the map right now.
   // viewMode (phone only): "list" or "map". On wider screens the map shows whenever no room is open.
   const mapState = {
-    L: null, map: null, tiles: null, loading: null, failed: false, places: new Map(), markers: new Map(),
-    shown: new Map(), isShown: () => true, me: null, lastQuery: null, fitTimer: 0, reopen: null,
-    viewMode: "list",
+    ml: null, map: null, loading: null, failed: false, places: new Map(), markers: new Map(),
+    shown: new Map(), isShown: () => true, lastQuery: null, fitTimer: 0, reopen: null,
+    viewMode: "list", popup: null, popupFor: null, popupHTML: "", tip: null, styleSeq: 0,
   };
 
   function initMapControls() {
@@ -1234,6 +1475,7 @@
       renderLayout();
     }));
     PHONE.addEventListener("change", renderLayout);
+    document.addEventListener("visibilitychange", syncGeo);
   }
 
   // Which of the list, the map and the "Pick a room" note are on screen.
@@ -1249,16 +1491,16 @@
     $("directory").hidden = phone && mapState.viewMode === "map" && !mapState.failed;
     $("intro").hidden = Boolean(state.room) || noData || (!phone && wantMap);
     $("backLabel").textContent = phone ? (mapState.viewMode === "map" ? "Map" : "Rooms") : (mapState.failed ? "Close" : "Map");
+    syncGeo(); // location tracking only runs while the map is on screen
     if (!wantMap) return;
     ensureMap().then(() => {
-      mapState.map.invalidateSize();
+      mapState.map.resize();
       updateMap(mapState.isShown);
       const re = mapState.reopen;
       mapState.reopen = null;
-      const marker = re && mapState.markers.get(re.building);
-      if (marker && mapState.map.hasLayer(marker)) {
-        marker.openPopup();
-        const el = [...(marker.getPopup().getElement()?.querySelectorAll("[data-loc]") ?? [])].find((e) => e.dataset.loc === re.loc);
+      if (re && mapState.markers.get(re.building)?.onMap) {
+        openPopup(re.building);
+        const el = [...(mapState.popup.getElement()?.querySelectorAll("[data-loc]") ?? [])].find((e) => e.dataset.loc === re.loc);
         el?.focus({ preventScroll: true });
       }
     }).catch(() => {});
@@ -1266,17 +1508,18 @@
 
   function ensureMap() {
     if (mapState.map) return Promise.resolve(mapState.map);
-    mapState.loading ??= new Promise((resolve, reject) => {
-      const css = document.createElement("link");
-      css.rel = "stylesheet";
-      css.href = "vendor/leaflet/leaflet.css";
-      document.head.append(css);
-      const js = document.createElement("script");
-      js.src = "vendor/leaflet/leaflet.js";
-      js.onload = () => (window.L ? resolve(window.L) : reject(new Error("Leaflet didn't start")));
-      js.onerror = () => reject(new Error("couldn't load the map"));
-      document.head.append(js);
-    }).then((L) => { createMap(L); return mapState.map; }).catch((err) => {
+    mapState.loading ??= Promise.all([
+      new Promise((resolve, reject) => {
+        const css = document.createElement("link");
+        css.rel = "stylesheet";
+        css.href = "vendor/maplibre/maplibre-gl.css";
+        css.onload = resolve;
+        css.onerror = () => reject(new Error("couldn't load the map"));
+        document.head.append(css);
+      }),
+      import("./vendor/maplibre/maplibre-gl.mjs"),
+    ]).then(([, ml]) => { createMap(ml); return mapState.map; }).catch((err) => {
+      // Also lands here when the browser can't draw WebGL maps.
       mapState.failed = true;
       mapState.loading = null;
       renderLayout();
@@ -1285,34 +1528,210 @@
     return mapState.loading;
   }
 
-  function createMap(L) {
-    mapState.L = L;
-    const map = L.map("map", { maxZoom: 19, zoomSnap: 0.5 });
-    map.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
-    mapState.map = map;
-    mapState.tiles = L.tileLayer(TILE_URL, { attribution: TILE_CREDIT, maxZoom: 19 }).addTo(map);
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // The street map, or a plain background when it can't be fetched. Fetched here rather than by
+  // MapLibre so a failure can fall back instead of leaving an empty map.
+  function loadMapStyle() {
+    const map = mapState.map, seq = ++mapState.styleSeq;
+    const blank = { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": cssVar("--surface") } }] };
+    const dark = DARK.matches;
+    fetch(MAP_STYLES[dark ? "dark" : "light"], { signal: AbortSignal.timeout?.(6000) })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))
+      .then((style) => (dark ? tuneDarkStyle(style) : style))
+      .catch(() => blank)
+      .then((style) => { if (seq === mapState.styleSeq) map.setStyle(style, { diff: false }); });
+  }
+
+  // OpenFreeMap's dark style is nearly black on black: buildings are darker than the ground and
+  // small roads barely show. Lift it into clear steps (ground, then buildings, then roads, with
+  // labels readable on top), with a hint of green for parks and blue for water.
+  const DARK_GROUND = "#151517";
+  const DARK_TUNE = {
+    background: { "background-color": DARK_GROUND },
+    landuse_residential: { "fill-color": "#19191C", "fill-opacity": 1 },
+    landuse_park: { "fill-color": "#17211A" },
+    landcover_wood: { "fill-color": "#17211A", "fill-opacity": 0.7 },
+    water: { "fill-color": "#13202D" },
+    waterway: { "line-color": "#1B2C3D" },
+    building: { "fill-color": "#2D2D33", "fill-outline-color": "#45454D" },
+    road_area_pier: { "fill-color": DARK_GROUND },
+    road_pier: { "line-color": DARK_GROUND },
+    highway_path: { "line-color": "#2B2B31" },
+    highway_minor: { "line-color": "#36363D" },
+    highway_major_casing: { "line-color": "#4A4A53" },
+    highway_major_inner: { "line-color": "#3D3D45" },
+    highway_major_subtle: { "line-color": "#3D3D45" },
+    highway_motorway_casing: { "line-color": "#4A4A53" },
+    highway_motorway_inner: { "line-color": "#3D3D45" },
+    highway_motorway_subtle: { "line-color": "#3D3D45" },
+    railway: { "line-color": "#3A3A42" },
+    railway_minor: { "line-color": "#3A3A42" },
+    railway_transit: { "line-color": "#3A3A42" },
+    railway_dashline: { "line-color": DARK_GROUND },
+    railway_minor_dashline: { "line-color": DARK_GROUND },
+    railway_transit_dashline: { "line-color": DARK_GROUND },
+    highway_name_other: { "text-color": "#8F8F97", "text-halo-color": DARK_GROUND },
+    highway_name_motorway: { "text-color": "#9A9AA2", "text-halo-color": DARK_GROUND },
+    water_name: { "text-color": "#5F7C97", "text-halo-color": DARK_GROUND },
+  };
+  function tuneDarkStyle(style) {
+    for (const layer of style.layers ?? []) {
+      const tune = DARK_TUNE[layer.id] ?? (layer.id.startsWith("place_") ? { "text-color": "#A2A2AA", "text-halo-color": DARK_GROUND } : null);
+      if (!tune) continue;
+      layer.paint = { ...layer.paint, ...tune };
+      // The wood texture isn't in the style's sprite sheet, so it would draw nothing at all.
+      if (layer.id === "landcover_wood") delete layer.paint["fill-pattern"];
+    }
+    return style;
+  }
+
+  function createMap(ml) {
+    mapState.ml = ml;
     for (const r of state.rooms) {
       if (!r.room || r.lat == null) continue;
       if (!mapState.places.has(r.building)) mapState.places.set(r.building, { name: r.building, lat: r.lat, lon: r.lon, rooms: [] });
       mapState.places.get(r.building).rooms.push(r);
     }
+    const map = new ml.Map({
+      container: "map",
+      style: { version: 8, sources: {}, layers: [] },
+      ...(mapState.places.size ? { bounds: lngLatBounds(campusCore()), fitBoundsOptions: { padding: 30 } } : { center: [-78.6772, 35.7847], zoom: 15 }),
+      maxZoom: 19, maxPitch: 0, pitchWithRotate: false, touchPitch: false, renderWorldCopies: false,
+      attributionControl: { compact: true },
+    });
+    mapState.map = map;
+    loadMapStyle();
+    DARK.addEventListener("change", () => loadMapStyle());
+    map.on("style.load", addAccuracyLayer);
+    // Some styles name icons they don't ship (OpenFreeMap's dark style has one); draw nothing.
+    map.on("styleimagemissing", (e) => { if (!map.hasImage(e.id)) map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) }); });
+
+    map.addControl(mapButtons([
+      { cls: "zoom-in", label: "Zoom in", icon: ICONS.plus, run: () => map.zoomIn() },
+      { cls: "zoom-out", label: "Zoom out", icon: ICONS.minus, run: () => map.zoomOut() },
+    ]), "top-right");
+    map.addControl(mapButtons([{ cls: "locate", id: "locateBtn", label: "Show my location", icon: ICONS.locate + ICONS.heading, run: geoCycle }]), "top-right");
+    const compass = mapButtons([{ cls: "compass", label: "Point the map north", icon: ICONS.needle, run: () => map.easeTo({ bearing: 0, duration: 300 }) }], "compass-ctrl");
+    map.addControl(compass, "top-right");
+    const needle = compass.box.querySelector("svg");
+    map.on("rotate", () => {
+      const b = map.getBearing();
+      needle.style.transform = `rotate(${-b}deg)`;
+      $("map").classList.toggle("rotated", Math.abs(b) > 0.5);
+    });
+    renderGeoButton();
+
+    // Building pins. Each is a real button, so you can tab to it and open it with Enter.
     for (const p of mapState.places.values()) {
-      const marker = L.marker([p.lat, p.lon], { keyboard: true, riseOnHover: true });
-      marker.bindPopup(() => popupHTML(p.name), { minWidth: 220, maxWidth: 300, maxHeight: 300, autoPanPadding: [16, 16] });
-      if (HOVER.matches) marker.bindTooltip(p.name, { direction: "top", offset: [0, -16] });
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "pin-wrap";
+      el.addEventListener("click", (e) => {
+        if (mapState.popupFor === p.name) { mapState.popup.remove(); return; }
+        openPopup(p.name);
+        // Opened from the keyboard (no pointer): move focus into the list of rooms.
+        if (e.detail === 0) mapState.popup.getElement()?.querySelector("[data-loc]")?.focus();
+      });
+      if (HOVER.matches) {
+        el.addEventListener("mouseenter", () => showTip(p.name));
+        el.addEventListener("mouseleave", () => mapState.tip.remove());
+      }
+      const marker = new ml.Marker({ element: el, anchor: "center" }).setLngLat([p.lon, p.lat]);
+      marker.onMap = false;
       mapState.markers.set(p.name, marker);
     }
-    // Room buttons in popups. Capture, because Leaflet stops clicks inside popups from bubbling.
+    mapState.popup = new ml.Popup({ maxWidth: "300px", offset: 18, closeOnClick: false, focusAfterOpen: false, className: "map-popup" });
+    mapState.popup.on("close", () => { mapState.popupFor = null; });
+    mapState.tip = new ml.Popup({ closeButton: false, closeOnClick: false, focusAfterOpen: false, offset: 18, className: "map-tip" });
+
+    // A click on the map itself (not a pin or the popup) closes the popup.
+    map.on("click", (e) => {
+      if (!e.originalEvent.target.closest?.(".pin-wrap, .maplibregl-popup")) mapState.popup.remove();
+    });
+    $("map").addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || !mapState.popupFor) return;
+      const name = mapState.popupFor;
+      mapState.popup.remove();
+      mapState.markers.get(name)?.getElement().focus();
+    });
+    // Room buttons in popups.
     $("map").addEventListener("click", (e) => {
       const b = e.target.closest?.("[data-loc]");
       if (b) { e.preventDefault(); openRoomFrom(b); }
     }, true);
+
+    // You moving the map takes it off "follow me"; turning it takes it off "heading up".
+    map.on("dragstart", () => { if (geo.mode === "follow" || geo.mode === "heading") setGeoMode("free"); });
+    map.on("rotatestart", (e) => { if (e.originalEvent && geo.mode === "heading") setGeoMode("follow"); });
+  }
+
+  const ICONS = {
+    plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg>',
+    minus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg>',
+    locate: '<svg class="i-loc" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4 4.5 10.6l6.6 2.3 2.3 6.6Z"/></svg>',
+    heading: '<svg class="i-head" viewBox="0 0 24 24" aria-hidden="true"><path class="beam" d="M5.5 7.5a9 9 0 0 1 13 0"/><path d="M12 6.5 17 19l-5-2.8L7 19Z"/></svg>',
+    needle: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 15.2 12H8.8Z" style="fill:var(--red);stroke:none"/><path d="M12 20.5 8.8 12h6.4Z" style="fill:currentColor;stroke:none;opacity:.4"/></svg>',
+  };
+
+  // A group of map buttons, as a MapLibre control.
+  function mapButtons(buttons, extraClass = "") {
+    const box = document.createElement("div");
+    box.className = `maplibregl-ctrl maplibregl-ctrl-group ${extraClass}`;
+    for (const b of buttons) {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = `mapbtn ${b.cls}`;
+      if (b.id) el.id = b.id;
+      el.setAttribute("aria-label", b.label);
+      el.title = b.label;
+      el.innerHTML = b.icon;
+      el.addEventListener("click", b.run);
+      box.append(el);
+    }
+    return { box, onAdd: () => box, onRemove: () => box.remove() };
+  }
+
+  function lngLatBounds(points) {
+    const b = new mapState.ml.LngLatBounds(points[0], points[0]);
+    for (const pt of points) b.extend(pt);
+    return b;
+  }
+
+  function openPopup(name) {
+    const p = mapState.places.get(name);
+    mapState.tip.remove();
+    mapState.popupFor = name;
+    mapState.popupHTML = popupHTML(name);
+    mapState.popup.setLngLat([p.lon, p.lat]).setHTML(mapState.popupHTML);
+    if (!mapState.popup.isOpen()) mapState.popup.addTo(mapState.map);
+    mapState.popupFor = name; // addTo can fire "close" for the previous building
+    requestAnimationFrame(keepPopupInView);
+  }
+
+  // Nudge the map so an open popup isn't cut off by the map's edges.
+  function keepPopupInView() {
+    const el = mapState.popup.getElement();
+    if (!el) return;
+    const pad = 12, box = $("map").getBoundingClientRect(), r = el.getBoundingClientRect();
+    const dx = r.left < box.left + pad ? r.left - box.left - pad : r.right > box.right - pad ? r.right - box.right + pad : 0;
+    const dy = r.top < box.top + pad ? r.top - box.top - pad : r.bottom > box.bottom - pad ? r.bottom - box.bottom + pad : 0;
+    if (dx || dy) {
+      if (geo.mode === "follow" || geo.mode === "heading") setGeoMode("free"); // you asked to look elsewhere
+      mapState.map.panBy([dx, dy], { duration: 250 });
+    }
+  }
+
+  function showTip(name) {
+    if (mapState.popupFor === name) return;
+    const p = mapState.places.get(name);
+    mapState.tip.setLngLat([p.lon, p.lat]).setText(name).addTo(mapState.map);
   }
 
   // isShown(room): whether a room matches the search. Remembered so the map can redraw itself later.
   function updateMap(isShown) {
     mapState.isShown = isShown;
-    const map = mapState.map, L = mapState.L;
+    const map = mapState.map;
     if (!map || $("mapview").hidden) return;
     const filtering = filter.mode !== "all" && Boolean(filter.free);
     const visible = [];
@@ -1321,53 +1740,59 @@
       const free = filtering ? rooms.filter((r) => filter.free.has(r.location)).length : 0;
       mapState.shown.set(name, { rooms, free });
       const marker = mapState.markers.get(name);
-      if (!rooms.length) { marker.remove(); continue; }
-      visible.push(marker);
+      if (!rooms.length) {
+        if (marker.onMap) { marker.remove(); marker.onMap = false; }
+        if (mapState.popupFor === name) mapState.popup.remove();
+        continue;
+      }
+      visible.push(p);
       const n = filtering ? free : rooms.length;
       const cls = ["pin", filtering && (free ? "free" : "none"), name === mapState.current && "current",
         name === sort.origin?.place && "origin"].filter(Boolean).join(" ");
       const which = rooms.length < p.rooms.length ? " matching" : "";
       const label = filtering ? `${name}: ${free} of ${rooms.length}${which} rooms free` : `${name}: ${rooms.length}${which} room${rooms.length === 1 ? "" : "s"}`;
-      const html = `<span class="${cls}" aria-hidden="true">${n}</span><span class="sr-only">${esc(label)}</span>`;
-      if (marker.pinHTML !== html) {
-        marker.setIcon(L.divIcon({ className: "pin-wrap", html, iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -12] }));
-        marker.pinHTML = html;
-      }
-      if (!map.hasLayer(marker)) marker.addTo(map);
-      if (marker.isPopupOpen()) marker.getPopup().update();
+      const html = `<span class="${cls}" aria-hidden="true">${n}</span>`;
+      const el = marker.getElement();
+      if (marker.pinHTML !== html) { el.innerHTML = html; marker.pinHTML = html; }
+      el.setAttribute("aria-label", label);
+      if (!marker.onMap) { marker.addTo(map); marker.onMap = true; }
     }
-    // Your position, when sorting by your location.
-    const me = sort.origin && !sort.origin.place ? sort.origin : null;
-    if (me) {
-      mapState.me ??= L.circleMarker([me.lat, me.lon], { radius: 7, className: "me-dot", interactive: false });
-      mapState.me.setLatLng([me.lat, me.lon]).addTo(map);
-    } else mapState.me?.remove();
+    if (mapState.popupFor) {
+      const html = popupHTML(mapState.popupFor);
+      if (html !== mapState.popupHTML) { mapState.popupHTML = html; mapState.popup.setHTML(html); }
+    }
+    drawMe();
 
     const q = $("q").value.trim();
     const tap = HOVER.matches ? "Click" : "Tap";
     let note = filtering ? "Numbers show how many rooms are free; grey means none." : "Numbers show how many rooms each building has.";
     note += q ? (visible.length ? " Only buildings matching your search are shown." : " Nothing on the map matches your search.") : "";
-    $("mapNote").textContent = `${note} ${tap} a building to see its rooms.`;
+    note += ` ${tap} a building to see its rooms. ${HOVER.matches ? "Right-drag" : "Twist with two fingers"} to turn the map.`;
+    $("mapNote").textContent = note;
+    if (geo.error) $("mapNote").insertAdjacentHTML("beforeend", ` <span class="f-warn">${esc(geo.error)}</span>`);
 
-    // Zoom to what the search found (or back out to the whole campus).
+    // Zoom to what the search found (or back out to the whole campus), keeping any rotation.
+    // Not while the map is following you: that would yank it away.
     if (q !== mapState.lastQuery) {
       mapState.lastQuery = q;
       clearTimeout(mapState.fitTimer);
       mapState.fitTimer = setTimeout(() => {
-        const points = q && visible.length ? visible.map((m) => m.getLatLng()) : campusCore();
-        if (points.length) map.fitBounds(L.latLngBounds(points), { padding: [30, 30], maxZoom: 17 });
+        if (geo.mode === "follow" || geo.mode === "heading") return;
+        const points = q && visible.length ? visible.map((p) => [p.lon, p.lat]) : campusCore();
+        if (points.length) map.fitBounds(lngLatBounds(points), { padding: 30, maxZoom: 17, bearing: map.getBearing() });
       }, q ? 300 : 0);
     }
   }
 
   // Buildings within 2 km of the middle of campus: main campus and Centennial, but not outlying
   // sites like the vet school or the Friday Institute, which would make the whole map tiny.
+  // Returns [lon, lat] pairs.
   function campusCore() {
     const all = [...mapState.places.values()];
     const mid = (k) => { const v = all.map((p) => p[k]).sort((a, b) => a - b); return v[Math.floor(v.length / 2)]; };
     const center = { lat: mid("lat"), lon: mid("lon") };
     const core = all.filter((p) => distance(center, p) <= 2000);
-    return (core.length ? core : all).map((p) => [p.lat, p.lon]);
+    return (core.length ? core : all).map((p) => [p.lon, p.lat]);
   }
 
   function popupHTML(name) {
@@ -1376,12 +1801,238 @@
     const rooms = [...shown.rooms].sort((a, b) =>
       (filtering ? (!filter.free.has(a.location)) - (!filter.free.has(b.location)) : 0) || natural(a.room, b.room));
     let summary = filtering ? `${shown.free} of ${p.rooms.length} rooms free` : `${p.rooms.length} room${p.rooms.length === 1 ? "" : "s"}`;
-    if (shown.rooms.length < p.rooms.length) summary += ` \u00b7 ${shown.rooms.length} match your search`;
-    if (sort.origin) summary += name === sort.origin.place ? " \u00b7 the building you picked" : ` \u00b7 ${fmtDist(distance(sort.origin, p))} away`;
+    if (shown.rooms.length < p.rooms.length) summary += ` · ${shown.rooms.length} match your search`;
+    const from = geo.pos ?? sort.origin;
+    if (from) summary += name === from.place ? " · the building you picked" : ` · ${fmtDist(distance(from, p))} away`;
     const today = hoursOn(name, iso(new Date()));
     if (today) summary += `<br>Building today: ${esc(fmtHoursText(today.text))}`;
     return `<div class="map-pop"><h3>${esc(name)}</h3><p>${summary}</p>
       <div class="rooms">${rooms.map((r) => chipHTML(r, "map")).join("")}</div></div>`;
+  }
+
+  // ---------- your location on the map ----------
+  // The location button cycles: off → follow (the map keeps you in the middle as you walk) →
+  // heading up (the map also turns so the way you're facing is up; only with a compass) → off.
+  // Dragging the map stops following but keeps your dot moving; tap the button to recenter.
+  // The cone on your dot shows which way the phone points (its compass) or, without a compass,
+  // which way you're walking. Tracking pauses while the map is hidden or the tab is in the
+  // background, to save battery.
+  //   mode: "off" | "free" (dot only) | "follow" | "heading"
+  const geo = {
+    mode: "off", watch: null, listening: false, compassAsked: false, compassOK: false, compass: false,
+    pos: null, from: null, t0: 0, shown: null, target: null, heading: null, last: 0,
+    raf: 0, flying: false, marker: null, error: "",
+  };
+
+  function geoCycle() {
+    askCompass(); // must happen during the tap: iOS only shows its prompt in response to one
+    if (!navigator.geolocation) {
+      geo.error = "This browser can't share your location.";
+      updateMap(mapState.isShown);
+      return;
+    }
+    const map = mapState.map;
+    if (geo.mode === "heading") {
+      setGeoMode("off");
+      map.easeTo({ bearing: 0, duration: 300 });
+    } else if (geo.mode === "follow") {
+      setGeoMode(geo.compass ? "heading" : "off");
+    } else {
+      setGeoMode("follow");
+    }
+  }
+
+  function setGeoMode(mode) {
+    const map = mapState.map, following = mode === "follow" || mode === "heading";
+    geo.mode = mode;
+    geo.error = "";
+    if (mode === "off") { geo.pos = geo.shown = geo.from = null; geo.target = geo.heading = null; }
+    syncGeo();
+    drawAccuracy();
+    // While following, zoom and twist around the middle of the map (where you are), not the
+    // pointer or your fingers.
+    for (const h of [map.scrollZoom, map.touchZoomRotate]) { h.disable(); h.enable(following ? { around: "center" } : undefined); }
+    if (following && geo.shown) {
+      const cam = { center: [geo.shown.lon, geo.shown.lat], zoom: Math.max(map.getZoom(), 16.5) };
+      if (mode === "heading" && geo.heading != null) cam.bearing = geo.heading;
+      fly(cam);
+    }
+    renderGeoButton();
+    drawMe();
+    updateMap(mapState.isShown);
+  }
+
+  // Start or pause the location and compass readings to match what's on screen.
+  function syncGeo() {
+    const run = geo.mode !== "off" && mapState.map && !$("mapview").hidden && document.visibilityState === "visible";
+    if (run && geo.watch == null) {
+      geo.watch = navigator.geolocation.watchPosition(onGeoPosition, onGeoError, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+    } else if (!run && geo.watch != null) {
+      navigator.geolocation.clearWatch(geo.watch);
+      geo.watch = null;
+    }
+    const eventName = "ondeviceorientationabsolute" in window ? "deviceorientationabsolute" : "deviceorientation";
+    const listen = run && geo.compassAsked && geo.compassOK;
+    if (listen && !geo.listening) addEventListener(eventName, onOrientation);
+    else if (!listen && geo.listening) removeEventListener(eventName, onOrientation);
+    geo.listening = listen;
+  }
+
+  function askCompass() {
+    if (geo.compassAsked) return;
+    geo.compassAsked = true;
+    const DOE = window.DeviceOrientationEvent;
+    if (!DOE) return;
+    if (typeof DOE.requestPermission === "function") {
+      DOE.requestPermission().then((s) => { geo.compassOK = s === "granted"; syncGeo(); }).catch(() => {});
+    } else {
+      geo.compassOK = true;
+    }
+  }
+
+  function onOrientation(e) {
+    let h = null;
+    if (typeof e.webkitCompassHeading === "number" && !Number.isNaN(e.webkitCompassHeading)) h = e.webkitCompassHeading; // Safari
+    else if (e.absolute && e.alpha != null) h = 360 - e.alpha; // Chrome, Firefox: alpha counts counterclockwise from north
+    if (h == null) return;
+    const turned = screen.orientation?.angle ?? window.orientation ?? 0; // phone held sideways
+    geo.target = (h + turned + 360) % 360;
+    if (!geo.compass) { geo.compass = true; renderGeoButton(); }
+    kick();
+  }
+
+  function onGeoPosition(pos) {
+    const c = pos.coords, first = !geo.pos;
+    geo.pos = { lat: c.latitude, lon: c.longitude, accuracy: c.accuracy };
+    geo.from = geo.shown ?? geo.pos;
+    geo.t0 = performance.now();
+    const hadError = Boolean(geo.error);
+    geo.error = "";
+    // No compass (most laptops, some phones): point the cone the way you're walking.
+    if (!geo.compass && c.heading != null && !Number.isNaN(c.heading) && (c.speed ?? 0) > 0.6) geo.target = c.heading;
+    drawAccuracy();
+    if (first) {
+      geo.shown = geo.pos;
+      if (geo.mode === "follow" || geo.mode === "heading") fly({ center: [c.longitude, c.latitude], zoom: Math.max(mapState.map.getZoom(), 16.5) });
+      renderGeoButton();
+      updateMap(mapState.isShown); // distances in the open popup
+    } else if (hadError) updateMap(mapState.isShown);
+    kick();
+  }
+
+  function onGeoError(err) {
+    if (err.code !== err.PERMISSION_DENIED && geo.pos) return; // a blip: keep the last fix and keep trying
+    geo.error = err.code === err.PERMISSION_DENIED
+      ? "Location access is blocked for this page. Allow it in your browser's settings to see where you are."
+      : "Couldn't find your location yet.";
+    if (err.code === err.PERMISSION_DENIED) {
+      const msg = geo.error;
+      setGeoMode("off");
+      geo.error = msg;
+    }
+    renderGeoButton();
+    updateMap(mapState.isShown);
+  }
+
+  // Camera moves we start ourselves; the per-frame follow waits for them to finish.
+  function fly(cam) {
+    geo.flying = true;
+    mapState.map.easeTo({ ...cam, duration: 500 });
+    clearTimeout(geo.flyTimer);
+    geo.flyTimer = setTimeout(() => { geo.flying = false; kick(); }, 550);
+  }
+
+  function kick() { if (!geo.raf && geo.pos) geo.raf = requestAnimationFrame(tick); }
+
+  // One frame: glide the dot to the latest fix (fixes arrive about once a second), ease the cone
+  // toward the compass reading (which jitters many times a second), and keep the camera on you.
+  function tick(now) {
+    geo.raf = 0;
+    const map = mapState.map;
+    if (!map || !geo.pos || geo.mode === "off") return;
+    let again = false;
+    const k = Math.min((now - geo.t0) / 900, 1), e = 1 - (1 - k) ** 3;
+    geo.shown = { lat: geo.from.lat + (geo.pos.lat - geo.from.lat) * e, lon: geo.from.lon + (geo.pos.lon - geo.from.lon) * e };
+    if (k < 1) again = true;
+    if (geo.target != null) {
+      const dt = Math.min(now - (geo.last || now), 100);
+      if (geo.heading == null) geo.heading = geo.target;
+      const d = ((geo.target - geo.heading + 540) % 360) - 180;
+      if (Math.abs(d) > 0.2) {
+        geo.heading = (geo.heading + d * (1 - Math.exp(-dt / 90)) + 360) % 360;
+        again = true;
+      }
+    }
+    geo.last = again ? now : 0;
+    drawMe();
+    if (!geo.flying && (geo.mode === "follow" || geo.mode === "heading")) {
+      const cam = { center: [geo.shown.lon, geo.shown.lat] };
+      if (geo.mode === "heading" && geo.heading != null && Math.abs(((geo.heading - map.getBearing() + 540) % 360) - 180) > 0.1) cam.bearing = geo.heading;
+      map.jumpTo(cam);
+    }
+    if (again) kick();
+  }
+
+  // Your dot: the live position while tracking, else your last known spot when the list is
+  // sorted by distance from you.
+  function drawMe() {
+    const map = mapState.map;
+    if (!map) return;
+    const live = geo.mode !== "off" && geo.shown;
+    const still = !live && sort.origin && !sort.origin.place ? sort.origin : null;
+    const at = live ? geo.shown : still;
+    if (!at) { if (geo.marker?.onMap) { geo.marker.remove(); geo.marker.onMap = false; } return; }
+    if (!geo.marker) {
+      const el = document.createElement("div");
+      el.className = "me";
+      el.setAttribute("aria-hidden", "true");
+      el.innerHTML = '<span class="me-cone"></span><span class="me-dot"></span>';
+      geo.marker = new mapState.ml.Marker({ element: el, anchor: "center", rotationAlignment: "map" });
+    }
+    const showCone = Boolean(live && geo.heading != null);
+    geo.marker.getElement().classList.toggle("has-heading", showCone);
+    geo.marker.setLngLat([at.lon, at.lat]).setRotation(showCone ? geo.heading : 0);
+    if (!geo.marker.onMap) { geo.marker.addTo(map); geo.marker.onMap = true; }
+  }
+
+  // The pale circle around your dot: how sure the browser is of where you are.
+  function addAccuracyLayer() {
+    const map = mapState.map;
+    if (map.getSource("me-acc")) return;
+    const color = cssVar("--c0");
+    map.addSource("me-acc", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addLayer({ id: "me-acc", type: "fill", source: "me-acc", paint: { "fill-color": color, "fill-opacity": 0.12 } });
+    map.addLayer({ id: "me-acc-edge", type: "line", source: "me-acc", paint: { "line-color": color, "line-opacity": 0.35, "line-width": 1 } });
+    drawAccuracy();
+  }
+
+  function drawAccuracy() {
+    const src = mapState.map?.getSource("me-acc");
+    if (!src) return;
+    const p = geo.mode !== "off" ? geo.pos : null;
+    if (!p || !(p.accuracy > 0) || p.accuracy > 2000) { src.setData({ type: "FeatureCollection", features: [] }); return; }
+    const dLat = p.accuracy / 111320, dLon = dLat / Math.cos((p.lat * Math.PI) / 180);
+    const ring = Array.from({ length: 49 }, (_, i) => {
+      const a = (i / 48) * 2 * Math.PI;
+      return [p.lon + dLon * Math.cos(a), p.lat + dLat * Math.sin(a)];
+    });
+    src.setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [ring] }, properties: {} });
+  }
+
+  function renderGeoButton() {
+    const b = $("locateBtn");
+    if (!b) return;
+    const labels = {
+      off: "Show my location",
+      free: "Center the map on me",
+      follow: geo.compass ? "Turn the map to the way I'm facing" : "Stop showing my location",
+      heading: "Stop showing my location",
+    };
+    b.dataset.mode = geo.mode;
+    b.toggleAttribute("data-wait", geo.mode !== "off" && !geo.pos);
+    b.setAttribute("aria-label", labels[geo.mode]);
+    b.title = labels[geo.mode];
+    b.setAttribute("aria-pressed", String(geo.mode === "follow" || geo.mode === "heading"));
   }
 
   function openFromHash() {

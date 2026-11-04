@@ -300,6 +300,33 @@
   .now { position: absolute; left: -1px; right: 0; height: 2px; background: var(--red); z-index: 4; pointer-events: none; }
   .now::before { content: ""; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
 
+  /* Public events from calendar.ncsu.edu: dashed edge and a grey wash, so they don't read as classes. */
+  .ev.evt {
+    --hue: var(--muted);
+    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--hue) 9%, var(--surface)) 0 6px, color-mix(in srgb, var(--hue) 15%, var(--surface)) 6px 12px);
+    border-left-style: dashed;
+  }
+  .ev.evt .ev-code { font-family: var(--body); font-weight: 600; font-size: 13px; }
+  .closedband {
+    position: absolute; left: 0; right: 0; z-index: 0; pointer-events: none;
+    background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--muted) 14%, transparent) 0 2px, transparent 2px 9px);
+  }
+  .closedband span { position: absolute; top: 4px; left: 4px; font-size: 11px; color: var(--muted); }
+
+  /* ---------- room facts and building access ---------- */
+  .about { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 12px; margin: 0 0 16px; }
+  .about section { padding: 12px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; min-width: 0; }
+  .about h3 { margin: 0 0 6px; font: 600 13px/1.2 var(--body); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .about p { margin: 0 0 6px; font-size: 14px; }
+  .about p:last-child { margin-bottom: 0; }
+  .about .why, .about .src { color: var(--muted); font-size: 13px; }
+  .about a { color: inherit; }
+  .type-tag { display: inline-block; padding: 2px 8px; margin-right: 6px; border-radius: 999px; font: 600 13px/1.4 var(--body); background: var(--ink); color: var(--paper); }
+  .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0; padding: 0; list-style: none; font-size: 14px; }
+  .tech { margin: 4px 0 0; font-size: 13.5px; color: var(--muted); }
+  .hours { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 4px 0 6px; font-size: 14px; }
+  .hours dt { color: var(--muted); }
+  .hours .today { font-weight: 600; }
   .extra { margin: 14px 0 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
   .extra strong { color: var(--ink); font-weight: 600; }
 
@@ -447,6 +474,10 @@
           <option value="me">Nearest to me</option>
         </select>
       </div>
+      <div class="f-row">
+        <label for="typeSel"><span>Type</span></label>
+        <select id="typeSel"><option value="">All room types</option></select>
+      </div>
       <p class="f-summary" id="sortNote" aria-live="polite" hidden></p>
     </div>
     <div class="viewseg" id="viewSeg" hidden>
@@ -471,7 +502,7 @@
   <main class="view" id="main">
     <section id="intro" class="notice">
       <h2>Pick a room</h2>
-      <p>Choose a building and room number on the left to see every class section scheduled there this semester, or search for a course or instructor to find where a class meets.</p>
+      <p>Choose a building and room number on the left to see every class section and public event scheduled there this semester, or search for a course or instructor to find where a class meets.</p>
     </section>
 
     <section id="nodata" class="notice" hidden>
@@ -505,13 +536,14 @@
           </div>
         </div>
       </header>
+      <div class="about" id="about"></div>
       <div class="cal-wrap"><div class="cal" id="cal"></div></div>
       <p class="extra" id="extra" hidden></p>
     </section>
   </main>
 </div>
 
-<dialog id="detail" aria-label="Section details">
+<dialog id="detail" aria-label="Details">
   <form method="dialog"><button class="d-close" aria-label="Close">&times;</button></form>
   <div id="dBody"></div>
 </dialog>
@@ -538,8 +570,12 @@
   // classes: one search entry per section and room. calendar: no-class days and exam dates.
   // highlight: section id picked from the class search, outlined on the calendar.
   // saved / recent: room locations, kept in this browser.
+  // eventsByLoc: location -> public events from calendar.ncsu.edu. buildings: building -> published
+  // hours (the libraries). types: room type -> label. access: what NC State says about building access.
+  // roomType: the sidebar's type filter ("" for all).
   const state = {
     meta: null, rooms: [], byLocation: new Map(), roomByLoc: new Map(), classes: [], calendar: { no_class: {}, exams: [] },
+    eventsByLoc: new Map(), buildings: {}, types: {}, access: null, roomType: "", classHours: new Map(),
     room: null, items: [], untimed: [], weeks: [], week: -1, highlight: null, saved: [], recent: [], anchor: null,
   };
   // Free-room filter. mode: "all" | "now" | "at". result is the latest findFreeRooms() answer.
@@ -586,7 +622,22 @@
   const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
   const natural = (a, b) => collator.compare(String(a ?? ""), String(b ?? ""));
   // "425 Dabney Hall": room number and the tidied building name (Class Search spells some oddly).
-  const displayName = (r) => (r.room ? `${r.room} ${r.building}` : r.location);
+  const displayName = (r) => (!r.room ? r.location : /\d/.test(r.room) ? `${r.room} ${r.building}` : `${r.room}, ${r.building}`);
+  const typeLabel = (r) => state.types[r?.type]?.[0] ?? "";
+  // Published hours for a building on a date ({ open: [[start, end] minutes], text }), or null when
+  // NC State doesn't publish them (every building but the libraries).
+  const hoursOn = (building, dateISO) => {
+    const h = state.buildings[building]?.hours?.[dateISO];
+    return h ? { open: h[0], text: h[1] } : null;
+  };
+  // The open stretch that covers all of [s, e), or null when the building is closed for any of it.
+  const openSpan = (h, s, e) => h.open.find(([a, b]) => a <= s && e <= b) ?? null;
+  // Whether a Wolfpack One Card is needed to get in at minute m (the libraries, overnight).
+  const cardNeeded = (building, m) => {
+    const c = state.buildings[building]?.card;
+    return Boolean(c) && (c[0] > c[1] ? m >= c[0] || m < c[1] : m >= c[0] && m < c[1]);
+  };
+  const fmtHoursText = (t) => t.replace(/&ndash;|–/g, "–");
   // "Barman,Konica; Lee,Ann" -> "Konica Barman, Ann Lee"
   const fmtInstructor = (text) => String(text ?? "").split(/;\s*/).filter(Boolean)
     .map((n) => { const [last, first] = n.split(","); return first ? `${first.trim()} ${last.trim()}` : n.trim(); }).join(", ");
@@ -634,6 +685,7 @@
     buildWeeks();
     initFilter();
     initSort();
+    initTypeFilter();
     renderDirectory();
     $("q").addEventListener("input", renderDirectory);
     $("saveBtn").addEventListener("click", toggleSaved);
@@ -666,7 +718,15 @@
     state.meta = data.meta;
     state.rooms = data.rooms;
     state.calendar = { no_class: data.calendar?.no_class ?? {}, exams: data.calendar?.exams ?? [] };
-    for (const r of state.rooms) r.search = `${r.location} ${r.building ?? ""}`.toLowerCase();
+    state.types = data.room_types ?? {};
+    state.buildings = data.buildings ?? {};
+    state.access = data.access ?? null;
+    for (const r of state.rooms) r.search = `${r.location} ${r.building ?? ""} ${r.name ?? ""}`.toLowerCase();
+    state.eventsByLoc = new Map();
+    for (const [location, date, start, end, title, url, host, noEnd] of data.events ?? []) {
+      if (!state.eventsByLoc.has(location)) state.eventsByLoc.set(location, []);
+      state.eventsByLoc.get(location).push({ date, start, end, title, url, host, noEnd: Boolean(noEnd) });
+    }
     state.roomByLoc = new Map(data.rooms.map((r) => [r.location, r]));
     state.byLocation = new Map();
     const classes = new Map();
@@ -694,7 +754,11 @@
   // Rooms with no class section meeting at any point in [start, start + minutes) on dateISO.
   // A section counts on a date when that weekday is one of its meeting days and the date falls
   // within its start and end dates, unless it's a no-class day (holiday or break). The window is
-  // cut off at midnight. Mirrors find_free_rooms() in ncsu_rooms.py, which the `free` command uses.
+  // cut off at midnight. Public events on the university calendar count too (holidays included).
+  // Rooms in a building with published hours (the libraries) that isn't open the whole window are
+  // left out and counted in `closed`. Rooms that only host events (meeting rooms, theaters) aren't
+  // searched: most of their bookings are private, so "free" would mean little.
+  // Mirrors find_free_rooms() in ncsu_rooms.py, which the `free` command uses.
   function findFreeRooms(dateISO, start, minutes) {
     const noClass = noClassOn(dateISO) ?? null;
     const end = Math.min(start + Math.max(1, minutes), 24 * 60);
@@ -702,19 +766,39 @@
     const s = hhmm(start), e = hhmm(end); // "HH:MM" strings compare correctly as text
     const rooms = new Map();
     for (const r of state.rooms) {
-      if (r.room) rooms.set(r.location, { location: r.location, building: r.building, room: r.room, free_from: null, free_until: null });
+      if (r.room && r.sections > 0) rooms.set(r.location, { location: r.location, building: r.building, room: r.room, free_from: null, free_until: null });
     }
     const busy = new Set();
-    for (const [location, room] of noClass ? [] : rooms) {
-      for (const m of state.byLocation.get(location) ?? []) {
-        if (!m.start_time || !m.end_time || !(m.days ?? "").includes(day)) continue;
-        if ((m.start_date && m.start_date > dateISO) || (m.end_date && m.end_date < dateISO)) continue;
-        if (m.start_time < e && m.end_time > s) busy.add(location);
-        else if (m.end_time <= s) { // finished before the window: when did the room free up?
-          if (room.free_from === null || m.end_time > room.free_from) room.free_from = m.end_time;
-        } else if (room.free_until === null || m.start_time < room.free_until) {
-          room.free_until = m.start_time; // starts after the window: how long does it stay free?
+    const consider = (location, room, from, to) => {
+      if (from < e && to > s) busy.add(location);
+      else if (to <= s) { // finished before the window: when did the room free up?
+        if (room.free_from === null || to > room.free_from) room.free_from = to;
+      } else if (room.free_until === null || from < room.free_until) {
+        room.free_until = from; // starts after the window: how long does it stay free?
+      }
+    };
+    for (const [location, room] of rooms) {
+      if (!noClass) {
+        for (const m of state.byLocation.get(location) ?? []) {
+          if (!m.start_time || !m.end_time || !(m.days ?? "").includes(day)) continue;
+          if ((m.start_date && m.start_date > dateISO) || (m.end_date && m.end_date < dateISO)) continue;
+          consider(location, room, m.start_time, m.end_time);
         }
+      }
+      for (const ev of state.eventsByLoc.get(location) ?? []) {
+        if (ev.date === dateISO) consider(location, room, ev.start, ev.end);
+      }
+    }
+    // Buildings with published hours: closed rooms aren't free, open ones only until closing time.
+    const closed = new Set();
+    for (const [location, room] of rooms) {
+      const h = hoursOn(room.building, dateISO);
+      if (!h) continue;
+      const span = openSpan(h, start, end);
+      if (!span) closed.add(location);
+      else if (span[1] < 24 * 60 && (room.free_until === null || hhmm(span[1]) < room.free_until)) {
+        room.free_until = hhmm(span[1]);
+        room.closes = true;
       }
     }
     const { term_start: ts, term_end: te } = state.meta;
@@ -724,7 +808,9 @@
       no_class: noClass,
       exams: isExamDay(dateISO),
       total_rooms: rooms.size,
-      rooms: [...rooms.values()].filter((r) => !busy.has(r.location)),
+      closed: [...closed].filter((l) => !busy.has(l)).length,
+      closed_set: closed,
+      rooms: [...rooms.values()].filter((r) => !busy.has(r.location) && !closed.has(r.location)),
     };
   }
 
@@ -821,7 +907,7 @@
     const r = filter.result;
     if (!r) { el.textContent = filter.error || "Checking…"; return; }
     const when = filter.mode === "now" && r.minutes <= 1 ? "right now" : fmtWindow(r);
-    let html = `<strong>${r.rooms.length} of ${r.total_rooms} rooms</strong> have no class ${esc(when)}.`;
+    let html = `<strong>${r.rooms.length} of ${r.total_rooms} rooms</strong> have nothing scheduled ${esc(when)}.`;
     if (r.no_class) {
       html += `<span class="f-warn">${esc(r.no_class.name)}: no classes${r.no_class.closed ? ", and the university is closed" : ""}.</span>`;
     } else if (r.exams) {
@@ -830,7 +916,8 @@
       const s = parseISO(state.meta.term_start), e = parseISO(state.meta.term_end);
       html += `<span class="f-warn">That day is outside the regular term${s && e ? ` (${fmtDate(s)} – ${fmtDate(e)})` : ""}, so few or no classes meet.</span>`;
     }
-    html += `<span class="f-note">Counts class sections only. Buildings may be locked, and rooms can be booked for other events.</span>`;
+    if (r.closed) html += `<span class="f-note">${r.closed} library room${r.closed === 1 ? " is" : "s are"} left out: the building is closed then.</span>`;
+    html += `<span class="f-note">Counts classes and public events on the NC State calendar. Private bookings aren't listed, and most buildings lock after hours (see a room's <em>Getting in</em> notes).</span>`;
     el.innerHTML = html;
   }
 
@@ -924,6 +1011,23 @@
     el.innerHTML = html;
   }
 
+  // ---------- room type filter ----------
+  function initTypeFilter() {
+    const sel = $("typeSel");
+    const counts = new Map();
+    for (const r of state.rooms) if (r.type) counts.set(r.type, (counts.get(r.type) ?? 0) + 1);
+    for (const [key, label] of Object.entries(state.types)) {
+      if (counts.has(key)) sel.append(new Option(`${label[1]} (${counts.get(key)})`, key));
+    }
+    const saved = pref.get("roomType", "");
+    if (counts.has(saved)) { state.roomType = saved; sel.value = saved; }
+    sel.addEventListener("change", () => {
+      state.roomType = sel.value;
+      pref.set("roomType", sel.value);
+      renderDirectory();
+    });
+  }
+
   // ---------- class search ----------
   const COURSE_RE = /^([a-z]{1,4})\s*(\d{1,3}[a-z]?)(?:\s+(\d{1,3}[a-z]?))?$/;
   const CLASS_LIMIT = 40;
@@ -1011,7 +1115,7 @@
   function renderDirectory() {
     const query = $("q").value;
     const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-    const match = (r) => tokens.every((t) => r.search.includes(t));
+    const match = (r) => tokens.every((t) => r.search.includes(t)) && (!state.roomType || r.type === state.roomType);
     const filtering = filter.mode !== "all";
     const free = filter.free;
     const found = tokens.length ? findClasses(query) : { byCode: false, list: [] };
@@ -1026,7 +1130,9 @@
 
     const rooms = state.rooms.filter((r) => match(r) && (!filtering || (free && free.has(r.location))));
     const roomsPerBuilding = new Map();
-    for (const r of state.rooms) if (r.room) roomsPerBuilding.set(r.building, (roomsPerBuilding.get(r.building) ?? 0) + 1);
+    for (const r of state.rooms) {
+      if (r.room && r.sections > 0 && (!state.roomType || r.type === state.roomType)) roomsPerBuilding.set(r.building, (roomsPerBuilding.get(r.building) ?? 0) + 1);
+    }
     const groups = new Map();
     for (const r of rooms) {
       const name = r.room ? r.building : "Other locations";
@@ -1054,6 +1160,8 @@
     let empty = "";
     if (filtering && !free) empty = filter.error || "Checking which rooms are free\u2026";
     else if (classesHTML && !html) empty = ""; // the class results are the answer
+    else if (state.roomType && !filtering && !tokens.length) empty = `No rooms of that type. Pick \u201cAll room types\u201d to see every room.`;
+    else if (filtering && state.roomType && !tokens.length) empty = `No ${esc(state.types[state.roomType]?.[1].toLowerCase() ?? "rooms")} are free then. Try a different time, or pick \u201cAll room types\u201d.`;
     else if (filtering && tokens.length) empty = `None of the rooms matching \u201c${esc(query)}\u201d are free then. Try a different time or a shorter length.`;
     else if (filtering) empty = "Every room has a class then. Try a different time or a shorter length.";
     else empty = `Nothing matches \u201c${esc(query)}\u201d. Try part of a building name like \u201cfitts\u201d, a course like \u201cMA 241\u201d, or an instructor\u2019s last name.`;
@@ -1074,14 +1182,17 @@
     const filtering = filter.mode !== "all", free = filter.free;
     const short = src === "bldg" || src === "map";
     const label = short ? (r.room ?? r.location) : displayName(r);
-    const sections = `${r.sections} section${r.sections === 1 ? "" : "s"}`;
+    const sections = [typeLabel(r), r.sections ? `${r.sections} section${r.sections === 1 ? "" : "s"}` : "",
+      r.events ? `${r.events} event${r.events === 1 ? "" : "s"}` : ""].filter(Boolean).join(", ");
     const f = free?.get(r.location);
     let freeText = "", freeShort = "", busy = false;
     if (filtering && f) {
-      freeText = f.free_until ? `Free until ${fmtTime(mins(f.free_until))}` : "Free the rest of the day";
+      freeText = f.free_until ? `Free until ${fmtTime(mins(f.free_until))}${f.closes ? " (building closes)" : ""}` : "Free the rest of the day";
       freeShort = f.free_until ? `til ${fmtShort(mins(f.free_until))}` : "rest of day";
-    } else if (filtering && free && r.room) {
-      freeText = "Has a class then"; freeShort = "in use"; busy = true;
+    } else if (filtering && free && r.room && r.sections > 0) {
+      const shut = filter.result?.closed_set?.has(r.location);
+      freeText = shut ? "Building closed then" : "Has a class or event then";
+      freeShort = shut ? "closed" : "in use"; busy = true;
     }
     const info = [freeText, sections].filter(Boolean).join(", ");
     return `<button type="button" class="chip${!short || !r.room ? " wide" : ""}" data-loc="${esc(r.location)}" data-src="${src}"
@@ -1267,6 +1378,8 @@
     let summary = filtering ? `${shown.free} of ${p.rooms.length} rooms free` : `${p.rooms.length} room${p.rooms.length === 1 ? "" : "s"}`;
     if (shown.rooms.length < p.rooms.length) summary += ` \u00b7 ${shown.rooms.length} match your search`;
     if (sort.origin) summary += name === sort.origin.place ? " \u00b7 the building you picked" : ` \u00b7 ${fmtDist(distance(sort.origin, p))} away`;
+    const today = hoursOn(name, iso(new Date()));
+    if (today) summary += `<br>Building today: ${esc(fmtHoursText(today.text))}`;
     return `<div class="map-pop"><h3>${esc(name)}</h3><p>${summary}</p>
       <div class="rooms">${rooms.map((r) => chipHTML(r, "map")).join("")}</div></div>`;
   }
@@ -1306,11 +1419,11 @@
 
   // ---------- room ----------
   function selectRoom(loc) {
-    const info = state.roomByLoc.get(loc), meetings = state.byLocation.get(loc);
-    if (!info || !meetings?.length) return;
-    const data = { location: loc, building: info.building, room: info.room, meetings };
+    const info = state.roomByLoc.get(loc), meetings = state.byLocation.get(loc) ?? [], events = state.eventsByLoc.get(loc) ?? [];
+    if (!info || (!meetings.length && !events.length)) return;
+    const data = { location: loc, building: info.building, room: info.room, info, meetings, events };
     state.room = data;
-    prepareItems(data.meetings);
+    prepareItems(data.meetings, data.events);
     if (state.highlight != null && !meetings.some((m) => m.section_id === state.highlight)) state.highlight = null;
     rememberRecent(loc);
     if (PHONE.matches) {
@@ -1345,7 +1458,7 @@
   // next one (half-semester classes don't meet every week). "Whole semester" is left alone.
   function weekForSection(id) {
     if (state.week < 0 || !state.weeks.length) return;
-    const its = state.items.filter((i) => i.sections.some((s) => s.section_id === id));
+    const its = state.items.filter((i) => !i.event && i.sections.some((s) => s.section_id === id));
     if (!its.length) return;
     const meetsIn = (w) => its.some((it) => {
       const d = addDays(w, DAYS.findIndex((x) => x.k === it.day));
@@ -1359,7 +1472,8 @@
   }
 
   // One block per day/time; sections that share a slot (cross-listed courses) merge into one block.
-  function prepareItems(meetings) {
+  // Events are one block each, on their own date.
+  function prepareItems(meetings, events = []) {
     const slots = new Map();
     state.untimed = [];
     for (const m of meetings) {
@@ -1367,13 +1481,18 @@
       for (const day of m.days) {
         const key = [day, m.start_time, m.end_time, m.start_date, m.end_date].join("|");
         if (!slots.has(key)) {
-          slots.set(key, { day, s: mins(m.start_time), e: mins(m.end_time), start: parseISO(m.start_date), end: parseISO(m.end_date), sections: [] });
+          slots.set(key, { key, day, s: mins(m.start_time), e: mins(m.end_time), start: parseISO(m.start_date), end: parseISO(m.end_date), sections: [] });
         }
         const slot = slots.get(key);
         if (!slot.sections.some((x) => x.section_id === m.section_id)) slot.sections.push(m);
       }
     }
     state.items = [...slots.values()];
+    events.forEach((ev, i) => {
+      const date = parseISO(ev.date);
+      state.items.push({ key: `e${i}`, day: DAYS[(date.getDay() + 6) % 7].k, s: mins(ev.start), e: ev.end === "24:00" ? 24 * 60 : mins(ev.end),
+        start: date, end: date, sections: [], event: ev });
+    });
   }
 
   const activeOn = (item, date) => (!item.start || date >= item.start) && (!item.end || date <= item.end);
@@ -1384,17 +1503,26 @@
     $("nextWeek").disabled = state.week >= state.weeks.length - 1;
 
     const ids = new Set(state.room.meetings.map((m) => m.section_id));
-    $("count").textContent = `${ids.size} section${ids.size === 1 ? "" : "s"} meet here this semester`;
+    const nEv = state.room.events.length;
+    const evText = nEv ? `${nEv} public event${nEv === 1 ? "" : "s"}` : "";
+    $("count").textContent = ids.size
+      ? `${ids.size} section${ids.size === 1 ? "" : "s"} meet here this semester${evText ? `, plus ${evText}` : ""}`
+      : `No classes here; ${evText} this semester`;
     renderStatus();
     renderWindowNote();
+    renderAbout(week);
     renderCalendar(week);
 
-    const extra = $("extra");
+    const notes = [];
     if (state.untimed.length) {
       const list = [...new Map(state.untimed.map((m) => [m.section_id, `${courseCode(m)} ${m.section}`])).values()];
-      extra.innerHTML = `<strong>Assigned here without a set time:</strong> ${esc(list.join(", "))}`;
-      extra.hidden = false;
-    } else extra.hidden = true;
+      notes.push(`<strong>Assigned here without a set time:</strong> ${esc(list.join(", "))}`);
+    }
+    if (nEv && !week) notes.push(`<strong>${esc(evText)}</strong> this semester. Pick a week to see them on the calendar.`);
+    if (nEv) notes.push(`Events (dashed blocks) come from <a href="https://calendar.ncsu.edu/">calendar.ncsu.edu</a>. Private bookings, like most meetings in conference rooms, aren't listed there.`);
+    const extra = $("extra");
+    extra.innerHTML = notes.join("<br>");
+    extra.hidden = !notes.length;
   }
 
   function renderStatus() {
@@ -1414,39 +1542,122 @@
     const todays = state.items.filter((i) => i.day === dayKey && activeOn(i, today)).sort((a, b) => a.s - b.s);
     const current = todays.filter((i) => i.s <= t && t < i.e);
     el.hidden = false;
+    const bh = hoursOn(state.room.building, iso(today));
+    if (bh && !openSpan(bh, t, t + 1)) {
+      const opens = bh.open.find(([a]) => a > t);
+      el.className = "status";
+      el.textContent = `Building closed now${opens ? `; opens at ${fmtTime(opens[0])}` : ""}`;
+      return;
+    }
     if (current.length) {
       const until = Math.max(...current.map((i) => i.e));
       el.className = "status busy";
-      el.textContent = `Class in session until ${fmtTime(until)}`;
+      el.textContent = current.every((i) => i.event) ? `Event until ${fmtClock(until)}` : `Class in session until ${fmtTime(until)}`;
       return;
     }
     const next = todays.find((i) => i.s > t);
     el.className = "status free";
-    el.textContent = next ? `No class until ${fmtTime(next.s)}` : "No more classes today";
+    el.textContent = next ? `Nothing scheduled until ${fmtTime(next.s)}${next.event ? " (an event)" : ""}` : "Nothing else scheduled today";
+  }
+
+  // "Mon–Thu 8:30 AM – 9:45 PM", one line per run of weekdays with the same first and last class.
+  function buildingClassHours(building) {
+    if (state.classHours.has(building)) return state.classHours.get(building);
+    const byDay = new Map();
+    for (const r of state.rooms) {
+      if (r.building !== building || !r.room) continue;
+      for (const m of state.byLocation.get(r.location) ?? []) {
+        if (!m.start_time || !m.end_time) continue;
+        const s = mins(m.start_time), e = mins(m.end_time);
+        for (const k of m.days ?? "") {
+          const cur = byDay.get(k);
+          byDay.set(k, cur ? [Math.min(cur[0], s), Math.max(cur[1], e)] : [s, e]);
+        }
+      }
+    }
+    const runs = [];
+    DAYS.forEach((d, i) => {
+      const r = byDay.get(d.k), last = runs[runs.length - 1];
+      if (!r) return;
+      if (last && last.end === i - 1 && last.r[0] === r[0] && last.r[1] === r[1]) { last.to = d; last.end = i; }
+      else runs.push({ from: d, to: d, end: i, r });
+    });
+    const lines = runs.map((x) => `${x.from.short}${x.to !== x.from ? `\u2013${x.to.short}` : ""} ${fmtTime(x.r[0])} \u2013 ${fmtTime(x.r[1])}`);
+    state.classHours.set(building, lines);
+    return lines;
+  }
+
+  // What the room is (type, seats, technology) and how to get into its building.
+  function renderAbout(week) {
+    const r = state.room.info, building = state.room.building, el = $("about");
+    if (!r.room) { el.innerHTML = ""; el.hidden = true; return; }
+    el.hidden = false;
+    let html = "";
+    if (r.type) {
+      const facts = [
+        r.capacity ? `${r.capacity} seats` : r.max_seats ? `Largest class: ${r.max_seats} seats` : "",
+        r.furniture ?? "", r.layout ?? "",
+      ].filter(Boolean);
+      html += `<section aria-labelledby="aboutRoom"><h3 id="aboutRoom">About this room</h3>
+        <p><span class="type-tag">${esc(typeLabel(r))}</span>${r.name && r.name !== r.room ? esc(r.name) : ""}</p>
+        <p class="why">${esc(r.type_basis ?? "")}.</p>
+        ${facts.length ? `<ul class="facts">${facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
+        ${r.tech?.length ? `<p class="tech"><strong>Technology:</strong> ${esc(r.tech.join(", "))}</p>` : ""}
+        ${r.info_url ? `<p class="src"><a href="${esc(r.info_url)}" target="_blank" rel="noopener">Registrar\u2019s page for this room</a> (floor plan, 360\u00b0 view)</p>` : ""}
+      </section>`;
+    }
+    const todayISO = iso(new Date());
+    const b = state.buildings[building];
+    let access = "";
+    if (b) {
+      // Published hours (the libraries): the days of the week shown, or the next seven days.
+      const first = week ?? new Date();
+      const rows = [];
+      for (let i = 0; i < 7; i++) {
+        const d = addDays(first, i), h = hoursOn(building, iso(d));
+        if (h) rows.push(`<dt${iso(d) === todayISO ? ' class="today"' : ""}>${DAYS[(d.getDay() + 6) % 7].short} ${fmtDate(d)}</dt><dd${iso(d) === todayISO ? ' class="today"' : ""}>${esc(fmtHoursText(h.text))}</dd>`);
+      }
+      const c = b.card;
+      access += rows.length ? `<dl class="hours">${rows.join("")}</dl>` : `<p>Hours for these dates aren\u2019t published yet.</p>`;
+      if (c) access += `<p>Wolfpack One Card required ${fmtClock(c[0])} \u2013 ${fmtTime(c[1])} when it\u2019s open overnight.</p>`;
+      access += `<p class="src">Hours from <a href="${esc(b.source)}" target="_blank" rel="noopener">NC State Libraries</a>.</p>`;
+    } else {
+      const lines = buildingClassHours(building);
+      if (lines.length) access += `<p>Classes are scheduled in ${esc(building)}:</p><dl class="hours">${lines.map((l) => { const [d, ...t] = l.split(" "); return `<dt>${esc(d)}</dt><dd>${esc(t.join(" "))}</dd>`; }).join("")}</dl>`;
+      if (state.access) {
+        access += `<p class="why">${esc(state.access.note)}</p>`;
+        access += `<p class="src">Sources: ${state.access.sources.map(([label, url]) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>`).join(" \u00b7 ")}</p>`;
+      }
+    }
+    const closedToday = noClassOn(todayISO);
+    if (closedToday?.closed) access = `<p><strong>The university is closed today (${esc(closedToday.name)}).</strong></p>` + access;
+    if (access) html += `<section aria-labelledby="aboutAccess"><h3 id="aboutAccess">Getting in</h3>${access}</section>`;
+    el.innerHTML = html;
   }
 
   // "Shaded: Thu, Nov 5, 10:00 AM to 11:00 AM, free" when a free-room search is on.
   function renderWindowNote() {
-    const el = $("winNote"), r = filter.mode !== "all" && state.room.room ? filter.result : null;
+    const el = $("winNote"), r = filter.mode !== "all" && state.room.room && state.room.info.sections > 0 ? filter.result : null;
     el.hidden = !r;
     if (!r) return;
     const isFree = filter.free.has(state.room.location);
-    const until = filter.free.get(state.room.location)?.free_until;
+    const f = filter.free.get(state.room.location);
     const verdict = isFree
-      ? `free${until ? ` until ${fmtTime(mins(until))}` : " the rest of the day"}`
-      : "has a class then";
+      ? `free${f.free_until ? ` until ${fmtTime(mins(f.free_until))}${f.closes ? " (building closes)" : ""}` : " the rest of the day"}`
+      : r.closed_set.has(state.room.location) ? "the building is closed then" : "has a class or event then";
     el.innerHTML = `<span>Shaded: ${esc(fmtWindow(r))}, <strong>${verdict}</strong></span>`;
   }
 
   function renderCalendar(week) {
-    const items = state.items;
+    // Events are on one date each, so the whole-semester view only shows classes.
+    const items = week ? state.items : state.items.filter((i) => !i.event);
     let days = DAYS.slice(0, 5);
     if (items.some((i) => i.day === "S")) days.push(DAYS[5]);
     if (items.some((i) => i.day === "U")) days.push(DAYS[6]);
 
     // Keep the time range steady while paging weeks.
-    const earliest = Math.min(...items.map((i) => i.s), 8 * 60);
-    const latest = Math.max(...items.map((i) => i.e), 17 * 60);
+    const earliest = Math.min(...state.items.map((i) => i.s), 8 * 60);
+    const latest = Math.max(...state.items.map((i) => i.e), 17 * 60);
     const startH = Math.floor(earliest / 60), endH = Math.ceil(latest / 60);
     const top = startH * 60, height = (endH - startH) * 60 * PX_PER_MIN;
     const hourPx = 60 * PX_PER_MIN;
@@ -1477,15 +1688,37 @@
       const date = dates[i];
       const holiday = date ? noClassOn(date) : null;
       const exams = date && !holiday && isExamDay(iso(date));
-      const dayItems = holiday ? [] : items.filter((it) => it.day === d.k && (!date || activeOn(it, date)));
+      // Holidays cancel classes but not events.
+      const dayItems = items.filter((it) => it.day === d.k && (!date || activeOn(it, date)) && !(holiday && !it.event));
       layout(dayItems);
-      const off = holiday || exams || (date && dayItems.length === 0 && items.some((it) => it.day === d.k));
+      const off = holiday || exams || (date && dayItems.length === 0 && items.some((it) => it.day === d.k && !it.event));
       html += `<div class="daycol${off ? " off" : ""}" style="height:${height}px;${lines}">`;
       if (holiday) html += `<p class="dayoff"><strong>${esc(holiday.name)}</strong>No classes</p>`;
       else if (exams && dayItems.length === 0) html += `<p class="dayoff"><strong>Final exams</strong>Exam times aren't listed</p>`;
+      // Hours a building with published hours (a library) is closed.
+      const bh = date && hoursOn(state.room.building, iso(date));
+      if (bh) {
+        let from = top;
+        for (const [a, b] of [...bh.open, [endH * 60, endH * 60]]) {
+          const to = Math.min(Math.max(a, top), endH * 60);
+          if (to > from) html += `<div class="closedband" style="top:${(from - top) * PX_PER_MIN}px;height:${(to - from) * PX_PER_MIN}px" aria-hidden="true">${to - from >= 45 ? "<span>Building closed</span>" : ""}</div>`;
+          from = Math.max(from, Math.min(b, endH * 60));
+        }
+      }
       for (const it of dayItems) {
         const y = (it.s - top) * PX_PER_MIN, h = Math.max((it.e - it.s) * PX_PER_MIN - 2, 18);
         const w = 100 / it.cols;
+        if (it.event) {
+          const ev = it.event;
+          const label = `Event: ${ev.title}, ${d.name} ${fmtTime(it.s)} to ${fmtClock(it.e)}${ev.noEnd ? " (end time not listed)" : ""}`;
+          html += `<button type="button" class="ev evt${h < 40 ? " short" : ""}" data-key="${esc(it.key)}"
+            style="top:${y}px;height:${h}px;left:calc(${it.col * w}% + var(--ev-inset));width:calc(${w}% - 2 * var(--ev-inset))" aria-label="${esc(label)}">
+            <span class="ev-code">${esc(ev.title)}</span>
+            <span class="ev-line">${fmtRange(it.s, it.e)}${h >= 58 ? "" : " Event"}</span>
+            ${h >= 58 ? `<span class="ev-line">Event${ev.host ? ` \u00b7 ${esc(ev.host)}` : ""}</span>` : ""}
+          </button>`;
+          continue;
+        }
         const codes = [...new Set(it.sections.map(courseCode))];
         const first = it.sections[0];
         const secLine = it.sections.length > 1 ? `${it.sections.length} sections together` : `${first.section} ${COMPONENTS[first.component] ?? first.component}`;
@@ -1518,7 +1751,7 @@
     cal.querySelectorAll(".ev").forEach((b) => b.addEventListener("click", () => showDetail(b.dataset.key)));
   }
 
-  const itemKey = (it) => `${it.day}|${it.s}|${it.e}|${it.sections[0].start_date}|${it.sections[0].end_date}`;
+  const itemKey = (it) => it.key;
 
   // Side-by-side columns for blocks that overlap in time.
   function layout(items) {
@@ -1546,6 +1779,22 @@
   function showDetail(key) {
     const it = state.items.find((x) => itemKey(x) === key);
     if (!it) return;
+    if (it.event) {
+      const ev = it.event, d = parseISO(ev.date);
+      const rows = [
+        ["When", `${DAYS[(d.getDay() + 6) % 7].name}, ${fmtDate(d)}, ${fmtTime(it.s)} \u2013 ${fmtClock(it.e)}${ev.noEnd ? " (end time not listed)" : ""}`],
+        ["Where", displayName(state.room)],
+        ["Hosted by", ev.host],
+      ].filter(([, v]) => v);
+      $("dBody").innerHTML = `<section class="d-sec">
+        <h2>${esc(ev.title)}</h2>
+        <p class="d-title">Public event on the NC State calendar</p>
+        <dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+        ${ev.url ? `<p class="d-title" style="margin:14px 0 0"><a href="${esc(ev.url)}" target="_blank" rel="noopener">See it on calendar.ncsu.edu</a></p>` : ""}
+      </section>`;
+      $("detail").showModal();
+      return;
+    }
     const body = it.sections.map((m) => {
       const days = DAYS.filter((d) => m.days.includes(d.k)).map((d) => d.short).join(", ");
       const s = parseISO(m.start_date), e = parseISO(m.end_date);

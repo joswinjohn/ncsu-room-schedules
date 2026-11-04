@@ -5,9 +5,11 @@ NC State room schedules, Fall 2026.
     python ncsu_rooms.py fetch     Download every Fall 2026 section from NC State's
                                    public Class Search and save it to data/fall2026.sqlite
     python ncsu_rooms.py serve     Open the room-schedule viewer at http://localhost:8000
+    python ncsu_rooms.py extras    Refresh classroom details (Registrar), public events
+                                   (calendar.ncsu.edu) and library hours; fetch does this too
     python ncsu_rooms.py export    Rewrite static/data/schedule.json from the database
                                    (fetch does this for you; deploy static/ anywhere)
-    python ncsu_rooms.py rooms     List the rooms found (add a filter: rooms "mann")
+    python ncsu_rooms.py rooms     List the rooms found (add a filter: rooms "mann", --type lab)
     python ncsu_rooms.py free      List rooms with no class right now
                                    (or: free --at 2pm --for 1h --date 2026-11-05 mann)
                                    (add --near talley to list the nearest rooms first)
@@ -357,6 +359,7 @@ BUILDINGS = [
     ("Cox Hall", r"\bcox hall\b", 35.78605, -78.67096),
     ("Weaver Labs", r"\bweaver lab", 35.78358, -78.67922),
     ("Dabney Hall", r"\bdabney\b", 35.78606, -78.67131),
+    ("D. H. Hill Jr. Library", r"\bd\.? ?h\.? hill\b|\bhill (jr\.? )?library\b", 35.78756, -78.66971),
     ("Engineering Building III", r"\bengineering (building|bldg) (iii|3)\b", 35.77083, -78.67356),
     ("Engineering Building I", r"\bengineering (building|bldg) (i|1)\b", 35.77163, -78.67500),
     ("Erdahl-Cloyd", r"\berdahl\b", 35.78774, -78.67057),
@@ -376,7 +379,7 @@ BUILDINGS = [
     ("Language and Computer Labs", r"\blanguage and computer\b", 35.78488, -78.66757),
     ("Leazar Hall", r"\bleaz[ae]r\b", 35.78539, -78.66555),
     ("Mann Hall", r"\bmann hall\b", 35.78526, -78.66918),
-    ("Marye Anne Fox Science", r"\banne fox\b", 35.78719, -78.67346),
+    ("Marye Anne Fox Science", r"\banne fox\b|\bfox science\b", 35.78719, -78.67346),
     ("Monteith Engineering Research", r"\bmonteith\b", 35.76945, -78.67908),
     ("Nelson Hall", r"\bnelson hall\b", 35.78836, -78.67397),
     ("Park Shops", r"\bpark shops\b", 35.78552, -78.66712),
@@ -580,6 +583,422 @@ def get_subject_html(session, code: str, raw: str, refresh: bool, delay: float) 
 
 
 # --------------------------------------------------------------------------- #
+# Other public sources: classroom details, campus events, library hours
+# --------------------------------------------------------------------------- #
+
+# The Registrar's classroom pages (registrar.ncsu.edu/classrooms) describe each general-purpose
+# classroom: capacity, furniture, layout and technology. The list comes from the site's
+# WordPress API; the details come from each room's own page.
+REGISTRAR_ROOMS_API = "https://registrar.ncsu.edu/wp-json/wp/v2/resource"
+# The university events calendar (calendar.ncsu.edu, run on Localist) lists public events
+# with a building and often a room. It's the only public source for bookings other than
+# classes: private meetings, like most conference-room bookings, aren't on it.
+EVENTS_API = "https://calendar.ncsu.edu/api/2/events"
+# NC State Libraries publish exact daily hours for Hill and Hunt, holidays included.
+LIBRARY_HOURS_API = "https://www.lib.ncsu.edu/api/hours/everything.json"
+LIBRARY_HOURS_PAGE = "https://www.lib.ncsu.edu/hours"
+EXTRA_DIR = RAW_DIR / "extra"
+
+# library_short_name in the hours API -> (building, minutes when a Wolfpack One Card is
+# needed to get in, as [from, until] across midnight). From the Libraries' Fall 2026 hours
+# sheet: "Wolfpack One Card required 10pm - 7am when open overnight."
+LIBRARY_BUILDINGS = {
+    "hill": ("D. H. Hill Jr. Library", [22 * 60, 7 * 60]),
+    "hunt": ("Hunt Library", [22 * 60, 7 * 60]),
+}
+
+# What NC State says about getting into other buildings. No lock schedule is published for
+# academic buildings: each building's Access Control Representative sets its door schedule.
+ACCESS = {
+    "note": (
+        "NC State doesn't publish lock times for academic buildings: each building's department "
+        "sets its own door schedule. The university says access is typically more restricted "
+        "after 5 p.m. on weekdays, on weekends and on university holidays, when classrooms and "
+        "academic buildings may need a university ID. Whether your Wolfpack One Card opens a "
+        "building after hours depends on the access its department has granted."
+    ),
+    "sources": [
+        ["Admissions: visiting campus", "https://admissions.ncsu.edu/visit/schedule-your-visit/"],
+        ["REG 04.05.04 Building Locking Systems", "https://policies.ncsu.edu/regulation/reg-04-05-04/"],
+        ["Libraries hours", LIBRARY_HOURS_PAGE],
+    ],
+}
+
+# Events far from campus (the calendar also lists off-campus talks) are left out.
+CAMPUS_CENTER = (35.7847, -78.6821)
+CAMPUS_RADIUS_M = 4000
+
+# type -> (label, plural label)
+ROOM_TYPES = {
+    "lecture": ("Lecture hall", "Lecture halls"),
+    "classroom": ("Classroom", "Classrooms"),
+    "lab": ("Lab", "Labs"),
+    "studio": ("Studio", "Studios"),
+    "activity": ("Gym or activity space", "Gyms and activity spaces"),
+    "conference": ("Conference room", "Conference rooms"),
+    "auditorium": ("Auditorium or theater", "Auditoriums and theaters"),
+    "event": ("Event or meeting space", "Event and meeting spaces"),
+}
+# Matched against a room's name (from the events calendar), first match wins.
+NAME_TYPES = [
+    (r"conference|board ?room", "conference"),
+    (r"auditorium|theat(re|er)|cinema", "auditorium"),
+    (r"\blab(oratory|oratories|s)?\b|makerspace|maker studio", "lab"),
+    (r"gym|climbing|fitness|dance|pool|court\b", "activity"),
+    (r"studio", "studio"),
+    (r"classroom", "classroom"),
+    (r"lounge|forum|commons|showcase|lobby|gallery|ballroom|living room|\bhall\b|center|"
+     r"\broom\b|kitchen|caf[eé]|courtyard|terrace|plaza|garage|patio|atrium|suite", "event"),
+]
+# Class Search components that say what a room is for.
+COMPONENT_KIND = {"Lab": "lab", "Stu": "studio", "Phy": "activity"}
+
+
+def get_cached(session, url: str, params: dict | None, cache: Path, refresh: bool,
+               delay: float, as_json: bool = True, tries: int = 3):
+    """GET a URL once and keep the response in data/raw, like the Class Search pages."""
+    if cache.exists() and not refresh:
+        text = cache.read_text(encoding="utf-8")
+        return json.loads(text) if as_json else text
+    for attempt in range(1, tries + 1):
+        try:
+            response = session.get(url, params=params, timeout=60)
+            response.raise_for_status()
+            break
+        except Exception as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            if attempt == tries or (status and 400 <= status < 500):
+                raise
+            time.sleep(2 ** attempt)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(response.text, encoding="utf-8")
+    time.sleep(delay)
+    return response.json() if as_json else response.text
+
+
+def room_key(building: str | None, room: str | None) -> tuple[str, str]:
+    """('Winston Hall', '001') and ('Winston Hall', '1') are the same room."""
+    return (building or "", (room or "").upper().lstrip("0") or "0")
+
+
+def parse_classroom_page(html: str) -> dict:
+    """Capacity, furniture, layout and technology from a Registrar classroom page."""
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    main = soup.find("main") or soup.body or soup
+    lines = [clean(t).lstrip("•").strip() for t in main.get_text("\n", strip=True).split("\n")]
+    lines = [t for t in lines if t]
+    info: dict = {"capacity": None, "furniture": None, "layout": None, "tech": []}
+
+    def after(label: str) -> str | None:
+        return lines[lines.index(label) + 1] if label in lines[:-1] else None
+
+    seats = re.search(r"\d+", after("Capacity:") or "")
+    info["capacity"] = int(seats[0]) if seats else None
+    info["furniture"] = after("Furniture:")
+    info["layout"] = after("Layout:")
+    if "Classroom Technology" in lines:
+        for line in lines[lines.index("Classroom Technology") + 1:]:
+            if line.endswith(":") or line.startswith("Search Classrooms"):
+                break
+            info["tech"].append(line)
+    return info
+
+
+def fetch_registrar_rooms(session, refresh: bool, delay: float) -> list[dict]:
+    rooms, page = [], 1
+    while True:
+        try:
+            batch = get_cached(session, REGISTRAR_ROOMS_API, {"per_page": 100, "page": page},
+                               EXTRA_DIR / f"registrar_{page}.json", refresh, delay)
+        except Exception:
+            if page == 1:
+                raise
+            break  # asked for one page past the end
+        rooms.extend(batch)
+        if len(batch) < 100:
+            break
+        page += 1
+    out = []
+    for i, item in enumerate(rooms, 1):
+        title = clean(htmllib.unescape(item.get("title", {}).get("rendered", "")))
+        url = (item.get("acf") or {}).get("resource_url") or item.get("link")
+        if not title or not url:
+            continue
+        try:
+            html = get_cached(session, url, None, EXTRA_DIR / "registrar" / f"{item['slug']}.html",
+                              refresh, delay, as_json=False)
+        except Exception as exc:
+            print(f"      couldn't read {url}: {exc}", flush=True)
+            continue
+        if i % 25 == 0:
+            print(f"      {i}/{len(rooms)} classroom pages", flush=True)
+        out.append({"title": title, "url": url, **parse_classroom_page(html)})
+    return out
+
+
+def fetch_events(session, start: str, end: str, refresh: bool, delay: float) -> list[dict]:
+    events, page = [], 1
+    while True:
+        data = get_cached(session, EVENTS_API, {"start": start, "end": end, "pp": 100, "page": page},
+                          EXTRA_DIR / f"events_{start}_{end}_{page}.json", refresh, delay)
+        events.extend(x["event"] for x in data.get("events", []) if "event" in x)
+        if page >= (data.get("page") or {}).get("total", 1):
+            break
+        page += 1
+    return events
+
+
+def fetch_library_hours(session, start: dt.date, end: dt.date, refresh: bool, delay: float) -> list[dict]:
+    rows, day = [], start
+    while day <= end:
+        try:
+            data = get_cached(session, LIBRARY_HOURS_API, {"date": day.isoformat()},
+                              EXTRA_DIR / "library_hours" / f"{day}.json", refresh, delay)
+        except Exception as exc:
+            print(f"      library hours for {day} failed: {exc}", flush=True)
+            data = []
+        for entry in data:
+            if entry.get("service_short_name") == "general" and entry.get("library_short_name") in LIBRARY_BUILDINGS:
+                rows.append({"day": day, **entry})
+        day += dt.timedelta(days=1)
+    return rows
+
+
+def library_open_ranges(entry: dict) -> list[list[int]]:
+    """Open times on one day as [[start, end]] minutes after midnight; [] when closed."""
+    if str(entry.get("closed")) == "1":
+        return []
+    if str(entry.get("twenty_four_hours")) == "1":
+        return [[0, 24 * 60]]
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("America/New_York")
+    except Exception:  # no time zone data: the machine's own zone (fine on campus)
+        tz = None
+    day = entry["day"]
+    opens = dt.datetime.fromtimestamp(int(entry["day_start"]), tz)
+    closes = dt.datetime.fromtimestamp(int(entry["day_end"]), tz)
+    start = opens.hour * 60 + opens.minute if opens.date() == day else 0
+    end = 24 * 60 if closes.date() > day else closes.hour * 60 + closes.minute
+    return [[start, end]] if end > start else []
+
+
+# Event spots that aren't rooms: lobbies, lawns, whole floors, help desks, shops.
+NOT_A_ROOM = re.compile(
+    r"lobby|atrium|entrance|lawn|steps|patio|terrace|breezeway|courtyard|plaza|outside|outdoor|in front|"
+    r"info table|all spaces|\bcampus$|ask us|service desk|outfitters|dining hall|the egg\b|bike library|"
+    r"^(the )?(\w+[- ])?(and \w+ )?floors?$|^\w+ floor (south |north |east |west )?\w*$", re.I)
+# Venues that are outdoor areas or off campus, even with a "room".
+NOT_A_BUILDING = re.compile(
+    r"\bthe oval\b|lake raleigh|arboretum|stafford commons|court of north carolina|brickyard|"
+    r"elementary school|schenck forest|\bfarm\b", re.I)
+
+
+def split_event_room(text: str) -> tuple[str | None, str]:
+    """'Room 3221' -> ('3221', ''), 'Conference Room 2328' -> ('2328', 'Conference Room'),
+    'Teaching Kitchen (Room 1158)' -> ('1158', 'Teaching Kitchen'), 'G 107' -> ('G107', ''),
+    'Duke Energy Hall (Second Floor)' -> (None, 'Duke Energy Hall')."""
+    text = clean(text or "")
+    found = re.search(r"\b(?:([A-Za-z])\s)?([A-Za-z]?\d{2,4}[A-Za-z]?)\b", text)
+    if not found:
+        name = clean(re.sub(r"\([^)]*\)?", "", text)) or text  # drop '(Second Floor)'
+        return None, name.strip(" -,:#")
+    name = text[:found.start()] + text[found.end():]
+    name = re.sub(r"\([^)]*\)|\([^)]*$", "", name)               # '(Room )', '(Suite'
+    name = re.sub(r"[,\-\u2013]\s*(room|rm\.?|suite|ste\.?)\W*$", "", clean(name), flags=re.I)  # 'Center, Room'
+    name = clean(name).strip(" -,:()#/")
+    if name.lower() in ("room", "rm", "rm.", "suite", "ste", "ste."):
+        name = ""
+    if re.search(r"\d", name):
+        name = ""  # '1520 and 1245': several rooms, keep just the first number
+    return ((found[1] or "") + found[2]).upper(), name
+
+
+def event_rows(events: list[dict], class_rooms: dict) -> list[dict]:
+    """One row per event that has a room on (or near) campus.
+
+    class_rooms: room_key -> location, so an event in Withers Hall 120 lands on the same
+    calendar as the classes in '120 Withers Hall'. Events in rooms with no classes get a
+    location of their own ('3221 Talley Student Union', 'Stewart Theatre, Talley Student Union').
+    """
+    rows, seen = [], set()
+    for e in events:
+        title = clean(e.get("title") or "")
+        if not title or re.match(r"cancell?ed\b", title, re.I):
+            continue
+        venue = clean(e.get("location_name") or e.get("location") or "")
+        room_text = clean(e.get("room_number") or "")
+        venue = re.sub(r"\s*[-–]\s*NC State University$", "", venue)
+        if not room_text and re.search(r"\s[-–]\s", venue):
+            venue, room_text = (clean(p) for p in re.split(r"\s[-–]\s", venue, maxsplit=1))
+        if not venue or not room_text or NOT_A_BUILDING.search(venue):
+            continue  # the whole building or outdoors: no room to put it in
+        geo = e.get("geo") or {}
+        try:
+            lat, lon = float(geo.get("latitude")), float(geo.get("longitude"))
+        except (TypeError, ValueError):
+            lat = lon = None
+        place = place_of(venue)
+        if place:
+            building = place[0]
+            if place[1] is not None:
+                lat, lon = place[1], place[2]
+        else:
+            if lat is None or distance_m(*CAMPUS_CENTER, lat, lon) > CAMPUS_RADIUS_M:
+                continue
+            building = clean(re.sub(r",.*$", "", venue))
+        number, name = split_event_room(room_text)
+        room = number or name
+        if not room or (not number and (NOT_A_ROOM.search(name) or NOT_A_BUILDING.search(name))):
+            continue
+        location = class_rooms.get(room_key(building, room)) if number else None
+        if location is None:
+            location = f"{room} {building}" if number else f"{room}, {building}"
+        for inst in e.get("event_instances") or []:
+            inst = inst.get("event_instance", inst)
+            if inst.get("all_day") or not inst.get("start"):
+                continue
+            start = inst["start"]
+            date, s = start[:10], start[11:16]
+            end = inst.get("end")
+            no_end = not end
+            if no_end:
+                t = dt.datetime.fromisoformat(start[:16]) + dt.timedelta(hours=1)
+                end = t.isoformat()
+            e_date, e_time = end[:10], end[11:16]
+            if e_date > date:
+                if (dt.date.fromisoformat(e_date) - dt.date.fromisoformat(date)).days > 1:
+                    continue  # multi-day: an exhibit or a closure, not a booking
+                e_time = "24:00"
+            if e_time <= s:
+                continue
+            key = (location, date, s, e_time, title)
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append({
+                "location": location, "building": building, "room": room, "room_name": name,
+                "lat": lat, "lon": lon, "date": date, "start": s, "end": e_time, "no_end": no_end,
+                "title": title, "url": e.get("localist_url") or "",
+                "host": "; ".join(g.get("name", "") for g in e.get("groups") or [] if g.get("name")),
+            })
+    return rows
+
+
+EXTRA_SCHEMA = """
+DROP TABLE IF EXISTS room_info;
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS building_hours;
+CREATE TABLE room_info (
+    location TEXT PRIMARY KEY, title TEXT, capacity INTEGER, furniture TEXT, layout TEXT,
+    tech TEXT, url TEXT
+);
+CREATE TABLE events (
+    id INTEGER PRIMARY KEY, location TEXT, building TEXT, room TEXT, room_name TEXT,
+    lat REAL, lon REAL, date TEXT, start_time TEXT, end_time TEXT, no_end INTEGER,
+    title TEXT, url TEXT, host TEXT
+);
+CREATE INDEX events_date ON events(date);
+CREATE TABLE building_hours (
+    building TEXT, date TEXT, open TEXT, display TEXT, card TEXT, source TEXT,
+    PRIMARY KEY (building, date)
+);
+"""
+
+
+def fetch_extras(session, refresh: bool, delay: float) -> dict:
+    """Download classroom details, events and library hours into the database.
+
+    Each source is optional: if one can't be reached, the others are still saved, and
+    the viewer simply shows less.
+    """
+    con = sqlite3.connect(DB_PATH)
+    try:
+        meta = dict(con.execute("SELECT key, value FROM meta").fetchall())
+        class_rooms = {
+            room_key(b, r): loc for loc, b, r in con.execute(
+                "SELECT DISTINCT location, building, room FROM meetings WHERE room IS NOT NULL")
+        }
+        term_start = dt.date.fromisoformat(meta.get("term_start") or EXAM_DAYS[0])
+        last_day = max(dt.date.fromisoformat(meta.get("term_end") or EXAM_DAYS[1]),
+                       dt.date.fromisoformat(EXAM_DAYS[1]))
+        summary = {}
+
+        print("Getting classroom details from the Registrar...", flush=True)
+        info_rows = []
+        try:
+            classrooms = fetch_registrar_rooms(session, refresh, delay)
+            unmatched = []
+            for c in classrooms:
+                parts = c["title"].split()
+                place = place_of(c["title"])
+                loc = class_rooms.get(room_key(place[0] if place else None, parts[-1] if parts else None))
+                if loc:
+                    info_rows.append((loc, c["title"], c["capacity"], c["furniture"], c["layout"],
+                                      json.dumps(c["tech"]), c["url"]))
+                else:
+                    unmatched.append(c["title"])
+            summary["classrooms"] = (len(info_rows), unmatched)
+        except Exception as exc:
+            print(f"   skipped: {exc}", flush=True)
+
+        print("Getting events from calendar.ncsu.edu...", flush=True)
+        events = []
+        try:
+            raw = fetch_events(session, term_start.isoformat(), last_day.isoformat(), refresh, delay)
+            events = event_rows(raw, class_rooms)
+            summary["events"] = (len(events), len(raw))
+        except Exception as exc:
+            print(f"   skipped: {exc}", flush=True)
+
+        print("Getting library hours...", flush=True)
+        hours = []
+        try:
+            for entry in fetch_library_hours(session, term_start, last_day, refresh, delay):
+                building, card = LIBRARY_BUILDINGS[entry["library_short_name"]]
+                hours.append((building, entry["day"].isoformat(), json.dumps(library_open_ranges(entry)),
+                              clean(htmllib.unescape(entry.get("display") or "")), json.dumps(card),
+                              LIBRARY_HOURS_PAGE))
+            summary["hours"] = len(hours)
+        except Exception as exc:
+            print(f"   skipped: {exc}", flush=True)
+
+        con.executescript(EXTRA_SCHEMA)
+        con.executemany("INSERT OR REPLACE INTO room_info VALUES (?,?,?,?,?,?,?)", info_rows)
+        con.executemany(
+            "INSERT INTO events (location, building, room, room_name, lat, lon, date, start_time,"
+            " end_time, no_end, title, url, host) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            [(r["location"], r["building"], r["room"], r["room_name"], r["lat"], r["lon"], r["date"],
+              r["start"], r["end"], int(r["no_end"]), r["title"], r["url"], r["host"]) for r in events],
+        )
+        con.executemany("INSERT OR REPLACE INTO building_hours VALUES (?,?,?,?,?,?)", hours)
+        con.execute("INSERT OR REPLACE INTO meta VALUES ('extras_at', ?)",
+                    (dt.datetime.now().isoformat(timespec="minutes"),))
+        con.commit()
+        return summary
+    finally:
+        con.close()
+
+
+def print_extras_summary(summary: dict) -> None:
+    if "classrooms" in summary:
+        n, unmatched = summary["classrooms"]
+        print(f"Matched {n} Registrar classrooms to rooms in the schedule", end="")
+        print(f" ({len(unmatched)} have no classes this term)" if unmatched else "")
+    if "events" in summary:
+        print(f"Saved {summary['events'][0]} event times with a room (of {summary['events'][1]} calendar listings)")
+    if "hours" in summary:
+        print(f"Saved {summary['hours']} days of library building hours")
+
+
+def has_extras(con) -> bool:
+    return bool(con.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'events'").fetchone())
+
+
+# --------------------------------------------------------------------------- #
 # Local database
 # --------------------------------------------------------------------------- #
 
@@ -724,6 +1143,10 @@ def cmd_fetch(args) -> None:
                  "Check data/raw/2268/ for what Class Search sent back.")
 
     meta = build_database(courses, sections, len(subjects))
+    extras = {}
+    if not args.skip_extras:
+        print()
+        extras = fetch_extras(session, args.refresh, args.delay)
     con = open_db()
     try:
         export_site(con)
@@ -741,8 +1164,31 @@ def cmd_fetch(args) -> None:
         print(f"Regular term dates: {meta['term_start']} to {meta['term_end']}")
     if errors:
         print(f"{len(errors)} rows couldn't be read; details in {ERROR_LOG.relative_to(ROOT)}")
+    print_extras_summary(extras)
     print(f"Wrote the viewer's data to {SCHEDULE_PATH.relative_to(ROOT)}")
     print("Next: python ncsu_rooms.py serve")
+
+
+def cmd_extras(args) -> None:
+    """Refresh just the classroom details, events and library hours (quick: events change often)."""
+    if not DB_PATH.exists():
+        sys.exit("No data yet. Run:  python ncsu_rooms.py fetch")
+    try:
+        import bs4  # noqa: F401
+        import requests
+    except ImportError:
+        sys.exit("Missing packages. Run:  pip install -r requirements.txt")
+    session = requests.Session()
+    session.headers["User-Agent"] = USER_AGENT
+    summary = fetch_extras(session, args.refresh, args.delay)
+    con = open_db()
+    try:
+        size = export_site(con)
+    finally:
+        con.close()
+    print()
+    print_extras_summary(summary)
+    print(f"Wrote {SCHEDULE_PATH.relative_to(ROOT)} ({size / 1_000_000:.1f} MB)")
 
 
 def cmd_export(args) -> None:
@@ -760,14 +1206,17 @@ def cmd_rooms(args) -> None:
     if not DB_PATH.exists():
         sys.exit("No data yet. Run:  python ncsu_rooms.py fetch")
     con = open_db()
-    rows = con.execute(
-        "SELECT location, COUNT(DISTINCT section_id) AS n FROM meetings"
-        " WHERE room IS NOT NULL GROUP BY location"
-    ).fetchall()
     tokens = " ".join(args.filter).lower().split()
-    rows = [r for r in rows if all(t in r["location"].lower() for t in tokens)]
+    rows = [r for r in room_list(con) if r["room"] and all(t in r["location"].lower() for t in tokens)]
+    if args.type:
+        rows = [r for r in rows if r.get("type") == args.type]
     for r in sorted(rows, key=lambda r: natural_key(r["location"])):
-        print(f"{r['location']:<45} {r['n']:>3} section{'' if r['n'] == 1 else 's'}")
+        kind = ROOM_TYPES.get(r.get("type"), ("",))[0]
+        seats = f"{r['capacity']} seats" if r.get("capacity") else ""
+        counts = f"{r['sections']:>3} section{'' if r['sections'] == 1 else 's'}"
+        if r.get("events"):
+            counts += f", {r['events']} event{'' if r['events'] == 1 else 's'}"
+        print(f"{r['location']:<45} {kind:<22} {seats:<10} {counts}")
     print(f"\n{len(rows)} rooms")
 
 
@@ -820,7 +1269,7 @@ def cmd_free(args) -> None:
     print()
     for r in rooms:
         if r["free_until"]:
-            until = f"free until {clock_label(r['free_until'])}"
+            until = f"free until {clock_label(r['free_until'])}" + (" (building closes)" if r.get("closes") else "")
         else:
             until = "free the rest of the day"
         name = f"{r['room']} {r['building']}"  # tidied building name
@@ -840,7 +1289,11 @@ def cmd_free(args) -> None:
         print("Note: that's during final exams, which follow their own schedule (not listed here).")
     elif not result["in_term"]:
         print("Note: that date is outside the regular term, so few or no classes are scheduled.")
-    print("Only class sections are counted; buildings may be locked and rooms booked for other events.")
+    if result["closed"]:
+        print(f"{result['closed']} rooms are left out because their building (a library) is closed then.")
+    print("Counts class sections and public events on calendar.ncsu.edu. Private bookings aren't")
+    print("listed, and NC State doesn't publish lock times for most buildings: access is usually")
+    print("restricted after 5 p.m., on weekends and on holidays (a Wolfpack One Card may not open it).")
 
 
 class ScheduleHandler(SimpleHTTPRequestHandler):
@@ -858,19 +1311,122 @@ class ScheduleHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
 
+def class_mix(con) -> dict[str, dict]:
+    """Per room: share of weekly class minutes by kind (lab, studio, activity, other) and the
+    biggest class (seats of the sections sharing one time slot, so cross-listed pairs add up)."""
+    minutes: dict[str, Counter] = {}
+    slots: dict[tuple, int] = {}
+    for r in con.execute(
+        "SELECT m.location, m.days, m.start_time, m.end_time, s.component, s.total_seats"
+        " FROM meetings m JOIN sections s ON s.id = m.section_id"
+        " WHERE m.room IS NOT NULL AND m.start_time IS NOT NULL AND m.end_time IS NOT NULL"
+    ):
+        length = (int(r[3][:2]) * 60 + int(r[3][3:])) - (int(r[2][:2]) * 60 + int(r[2][3:]))
+        weekly = max(0, length) * max(1, len(r[1] or ""))
+        minutes.setdefault(r[0], Counter())[COMPONENT_KIND.get(r[4], "other")] += weekly
+        key = (r[0], r[1], r[2], r[3])
+        slots[key] = slots.get(key, 0) + (r[5] or 0)
+    biggest: Counter = Counter()
+    for (loc, *_), seats in slots.items():
+        biggest[loc] = max(biggest[loc], seats)
+    out = {}
+    for loc, counts in minutes.items():
+        total = sum(counts.values()) or 1
+        out[loc] = {"share": {k: v / total for k, v in counts.items()}, "max_seats": biggest[loc]}
+    return out
+
+
+def classify_room(name: str, info: dict | None, mix: dict | None) -> tuple[str, str]:
+    """(type, why) for a room. The why is shown in the viewer, so it says how sure we are."""
+    share = (mix or {}).get("share", {})
+    for pattern, kind in NAME_TYPES:
+        if name and re.search(pattern, name, re.I):
+            return kind, f"From its name, “{name}”"
+    if info:
+        cap, furniture = info.get("capacity") or 0, (info.get("furniture") or "").lower()
+        if share.get("lab", 0) >= 0.6:
+            return "lab", "A Registrar classroom where most class time is labs"
+        if cap >= 100 or "auditorium" in furniture:
+            return "lecture", "A Registrar general-purpose classroom" + (f" with {cap} seats" if cap else "")
+        return "classroom", "A Registrar general-purpose classroom"
+    if mix:
+        for kind, label in (("lab", "labs"), ("studio", "studios"), ("activity", "physical activity classes")):
+            if share.get(kind, 0) >= 0.5:
+                return kind, f"Most class time here is {label}"
+        if mix["max_seats"] >= 120:
+            return "lecture", f"Classes of up to {mix['max_seats']} seats meet here"
+        return "classroom", ("Classes meet here, but it isn't in the Registrar's classroom list, "
+                             "so its department probably schedules it")
+    return "event", "Only public events are listed here"
+
+
 def room_list(con) -> list[dict]:
+    extras = has_extras(con)
     rows = con.execute(
         "SELECT location, building, room, COUNT(DISTINCT section_id) AS sections"
         " FROM meetings WHERE location IS NOT NULL AND location != '' GROUP BY location"
     ).fetchall()
+    info = {r["location"]: dict(r) for r in con.execute("SELECT * FROM room_info")} if extras else {}
+    events: dict[str, dict] = {}
+    if extras:
+        for r in con.execute(
+            "SELECT location, MAX(building) AS building, MAX(room) AS room, MAX(room_name) AS room_name,"
+            " MAX(lat) AS lat, MAX(lon) AS lon, COUNT(*) AS n FROM events GROUP BY location"
+        ):
+            events[r["location"]] = dict(r)
+    mix = class_mix(con)
     rooms = []
     for r in rows:
         room = dict(r)
         place = place_of(room["location"]) if room["room"] else None
         room["place"], room["lat"], room["lon"] = place if place else (None, None, None)
         rooms.append(room)
+    # Rooms that only appear on the events calendar (meeting rooms, theaters, lounges).
+    known = {r["location"] for r in rooms}
+    for loc, ev in events.items():
+        if loc in known:
+            continue
+        place = place_of(ev["building"])
+        rooms.append({
+            "location": loc, "building": ev["building"], "room": ev["room"], "sections": 0,
+            "place": place[0] if place else ev["building"],
+            "lat": place[1] if place and place[1] is not None else ev["lat"],
+            "lon": place[2] if place and place[2] is not None else ev["lon"],
+        })
+    for room in rooms:
+        loc = room["location"]
+        room["events"] = events.get(loc, {}).get("n", 0)
+        if not room["room"]:
+            continue  # "Internet", "Room To Be Announced": not a place
+        name = events.get(loc, {}).get("room_name") or ""
+        if not name and room["sections"] == 0 and not re.search(r"\d", room["room"]):
+            name = room["room"]  # 'Stewart Theatre'
+        details = info.get(loc)
+        room["type"], room["type_basis"] = classify_room(name, details, mix.get(loc))
+        if name and name != room["room"]:
+            room["name"] = name
+        if mix.get(loc):
+            room["max_seats"] = mix[loc]["max_seats"]
+        if details:
+            room["capacity"] = details["capacity"]
+            room["furniture"] = details["furniture"]
+            room["layout"] = details["layout"]
+            room["tech"] = json.loads(details["tech"] or "[]")
+            room["info_url"] = details["url"]
     rooms.sort(key=lambda r: (r["room"] is None, natural_key(r["building"]), natural_key(r["room"])))
     return rooms
+
+
+def building_hours(con) -> dict:
+    """{building: {"hours": {date: [open ranges, display]}, "card": [from, until], "source": url}}"""
+    out: dict = {}
+    if not has_extras(con):
+        return out
+    for r in con.execute("SELECT * FROM building_hours ORDER BY building, date"):
+        b = out.setdefault(r["building"], {"hours": {}, "card": json.loads(r["card"] or "null"),
+                                           "source": r["source"]})
+        b["hours"][r["date"]] = [json.loads(r["open"]), r["display"]]
+    return out
 
 
 def export_site(con) -> int:
@@ -901,12 +1457,22 @@ def export_site(con) -> int:
             " WHERE location IS NOT NULL AND location != '' ORDER BY id"
         )
     ]
+    events = [
+        [r["location"], r["date"], r["start_time"], r["end_time"], r["title"], r["url"], r["host"], r["no_end"]]
+        for r in con.execute("SELECT * FROM events ORDER BY date, start_time, location")
+    ] if has_extras(con) else []
     data = {
         "meta": meta,
         "rooms": room_list(con),
         "sections": sections,
         # [section id, location, days, start "HH:MM" or null, end "HH:MM" or null]
         "meetings": meetings,
+        # [location, date, start "HH:MM", end "HH:MM" (or "24:00"), title, calendar link, host,
+        #  1 when the calendar gave no end time (shown as an hour)]
+        "events": events,
+        "room_types": ROOM_TYPES,
+        "buildings": building_hours(con),
+        "access": ACCESS,
         "calendar": {"no_class": NO_CLASS_DAYS, "exams": list(EXAM_DAYS)},
     }
     body = json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -973,8 +1539,10 @@ def find_free_rooms(con, date: dt.date, start: int, minutes: int) -> dict:
 
     Only numbered rooms that appear somewhere in the schedule are considered. A section
     counts on `date` when that weekday is one of its meeting days and `date` falls within
-    the section's start and end dates, unless it's one of NO_CLASS_DAYS. The window is cut
-    off at midnight.
+    the section's start and end dates, unless it's one of NO_CLASS_DAYS. Public events from
+    the university calendar count too (holidays included). Rooms in a building with published
+    hours (the libraries) that isn't open for the whole window are left out and counted in
+    "closed". The window is cut off at midnight.
     """
     minutes = max(1, int(minutes))
     end = min(start + minutes, 24 * 60)
@@ -1001,6 +1569,10 @@ def find_free_rooms(con, date: dt.date, start: int, minutes: int) -> dict:
         """,
         (day, day_iso, day_iso, 1 if no_class else 0),
     )
+    rows = list(rows)
+    if has_extras(con):
+        rows += con.execute(
+            "SELECT location, start_time, end_time FROM events WHERE date = ?", (day_iso,)).fetchall()
     s_txt, e_txt = hhmm(start), hhmm(end)
     for r in rows:
         room = rooms.get(r["location"])
@@ -1014,7 +1586,24 @@ def find_free_rooms(con, date: dt.date, start: int, minutes: int) -> dict:
         else:  # starts at or after the window ends: how long does the room stay free?
             if room["free_until"] is None or r["start_time"] < room["free_until"]:
                 room["free_until"] = r["start_time"]
-    free = [room for loc, room in rooms.items() if loc not in busy]
+    # Buildings with published hours: closed rooms aren't free, and open ones are free only
+    # until the building closes.
+    hours = {}
+    if has_extras(con):
+        hours = {r["building"]: json.loads(r["open"]) for r in con.execute(
+            "SELECT building, open FROM building_hours WHERE date = ?", (day_iso,))}
+    closed = set()
+    for loc, room in rooms.items():
+        ranges = hours.get(room["building"])
+        if ranges is None:
+            continue
+        span = next((rg for rg in ranges if rg[0] <= start and end <= rg[1]), None)
+        if span is None:
+            closed.add(loc)
+        elif span[1] < 24 * 60 and (room["free_until"] is None or hhmm(span[1]) < room["free_until"]):
+            room["free_until"] = hhmm(span[1])
+            room["closes"] = True
+    free = [room for loc, room in rooms.items() if loc not in busy and loc not in closed]
     free.sort(key=lambda r: (natural_key(r["building"]), natural_key(r["room"])))
     meta = dict(con.execute("SELECT key, value FROM meta").fetchall())
     term_start, term_end = meta.get("term_start", ""), meta.get("term_end", "")
@@ -1028,6 +1617,7 @@ def find_free_rooms(con, date: dt.date, start: int, minutes: int) -> dict:
         "no_class": no_class,
         "exams": EXAM_DAYS[0] <= day_iso <= EXAM_DAYS[1],
         "total_rooms": len(rooms),
+        "closed": len(closed - busy),
         "rooms": free,
     }
 
@@ -1060,7 +1650,16 @@ def main() -> None:
                          help="seconds to wait between requests (default 0.5)")
     p_fetch.add_argument("--subjects", nargs="+", metavar="CODE",
                          help="only these subjects, e.g. --subjects MAE CSC (useful for a quick test)")
+    p_fetch.add_argument("--skip-extras", action="store_true",
+                         help="only Class Search: skip classroom details, events and library hours")
     p_fetch.set_defaults(func=cmd_fetch)
+
+    p_extras = sub.add_parser("extras", help="refresh classroom details, events and library hours")
+    p_extras.add_argument("--refresh", action="store_true",
+                          help="download again instead of reusing saved responses")
+    p_extras.add_argument("--delay", type=float, default=0.3,
+                          help="seconds to wait between requests (default 0.3)")
+    p_extras.set_defaults(func=cmd_extras)
 
     p_export = sub.add_parser("export", help="write static/data/schedule.json for the viewer")
     p_export.set_defaults(func=cmd_export)
@@ -1072,6 +1671,7 @@ def main() -> None:
 
     p_rooms = sub.add_parser("rooms", help="list rooms in the terminal")
     p_rooms.add_argument("filter", nargs="*", help="words to match, e.g. mann hall")
+    p_rooms.add_argument("--type", choices=sorted(ROOM_TYPES), help="only rooms of this type")
     p_rooms.set_defaults(func=cmd_rooms)
 
     p_free = sub.add_parser("free", help="list rooms with no class now or at a given time")

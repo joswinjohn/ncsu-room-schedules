@@ -31,6 +31,9 @@ python ncsu_rooms.py free               # rooms with no class right now
 python ncsu_rooms.py free withers --at 2pm --for 90             # free 2:00-3:30 PM today
 python ncsu_rooms.py free --date 2026-11-05 --at 10:00 --for 1h # a different day
 python ncsu_rooms.py free --near talley                          # nearest free rooms first
+python ncsu_rooms.py rooms --type lecture             # lecture halls only (also lab, conference, ...)
+python ncsu_rooms.py extras             # refresh events, classroom details and library hours only
+python ncsu_rooms.py extras --refresh   # ...downloading them again (events change often)
 python ncsu_rooms.py fetch --refresh    # re-download for up-to-date enrollment
 python ncsu_rooms.py serve --port 8080  # use a different port
 python ncsu_rooms.py export             # rewrite static/data/schedule.json (fetch does this too)
@@ -44,7 +47,8 @@ python ncsu_rooms.py export             # rewrite static/data/schedule.json (fet
   Break"), and those days show as "No classes" on the calendar.
 - Cross-listed sections that share a time slot (like a 400- and 500-level pair) show as one block.
 - Click any block for the section, instructor, dates, and enrollment.
-- The status line ("No class until 2:20 PM") only knows about scheduled class sections, not events, exams, or study groups.
+- The status line ("Nothing scheduled until 2:20 PM") knows about class sections and public events,
+  not exams, private meetings or study groups.
 - Each room has its own link (e.g. `http://localhost:8000/#1321%20Fitts-Woolard%20Hall`), so you can bookmark rooms.
 - **Save room** (next to the section count) pins a room to a "Saved rooms" list at the top of the
   sidebar. The rooms you've opened lately show under "Recently viewed". Both are kept in your
@@ -214,3 +218,39 @@ git push
 
 Be considerate with `--refresh`: it sends one request per subject (a couple hundred in total),
 with a half-second pause between them. Raise `--delay` if you like.
+
+## Events, room types and getting in
+
+Besides Class Search, `fetch` (or `extras` on its own) reads three other public NC State sources:
+
+- **Events** from the university calendar, [calendar.ncsu.edu](https://calendar.ncsu.edu/).
+  Events with a room show on that room's calendar as dashed blocks; click one for details and a
+  link to the listing. Rooms that only host events, like Talley's meeting rooms and ballrooms,
+  Stewart Theatre or the Graduate School's conference room, get their own calendars. The free-room
+  filter counts events as busy time. Only public events are listed: private bookings, which covers
+  most conference-room meetings, and library study-room reservations (behind an NC State login)
+  aren't available, and NC State has no public 25Live calendar.
+- **Classroom details** from the Registrar's [classroom pages](https://registrar.ncsu.edu/classrooms/):
+  seats, furniture, layout and technology for its general-purpose classrooms, with a link to each
+  room's floor plan and 360° view.
+- **Library hours** from NC State Libraries for D. H. Hill and Hunt, holidays included. On a library
+  room's calendar the closed hours are shaded. Free-room searches leave out library rooms while the
+  building is closed and say when it closes.
+
+Each room gets a **type**: lecture hall, classroom, lab, studio, gym or activity space, conference
+room, auditorium or theater, or event or meeting space. The room page says where its type comes
+from. Rooms with a descriptive name ("Conference Room 2328", "Stewart Theatre") are typed by that
+name. For the Registrar's classrooms, 100 or more seats or auditorium seating makes a lecture hall.
+Other rooms are typed by what meets there, for example mostly lab sections, or classes of 120 seats
+or more. Use the **Type** menu in the sidebar to show one kind of room.
+
+**Getting in.** NC State doesn't publish lock times or card-access hours for academic buildings.
+Each building's department sets its own door schedule
+([REG 04.05.04](https://policies.ncsu.edu/regulation/reg-04-05-04/)). The university says access is
+typically more restricted after 5 p.m., on weekends and on holidays. So each room page shows:
+
+- for Hill and Hunt, the published hours for the week shown, and the overnight Wolfpack One Card
+  window (10 PM to 7 AM);
+- for other buildings, when classes are scheduled there (doors are generally open for classes) and
+  NC State's general guidance on access. Whether your card opens a building after hours depends on
+  the access its department has granted you.

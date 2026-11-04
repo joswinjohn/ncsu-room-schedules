@@ -2,9 +2,12 @@
 // signal (basements, crowded lecture halls). Always tries the network first, so a new
 // export shows up as soon as you're online; falls back to the saved copy when offline or
 // when the network takes more than a few seconds.
-const CACHE = "rooms-v1";
+const CACHE = "rooms-v2";
 const CORE = ["./", "index.html", "data/schedule.json", "manifest.webmanifest",
-  "icons/icon.svg", "icons/icon-192.png", "icons/apple-touch-icon.png"];
+  "icons/icon.svg", "icons/icon-192.png", "icons/apple-touch-icon.png",
+  "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css"];
+// Map tiles come from OpenStreetMap and aren't saved for offline use (only the browser's normal
+// cache applies), so offline the map shows the building pins on a blank background.
 const SLOW_MS = 4000;
 
 self.addEventListener("install", (event) => {

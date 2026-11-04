@@ -63,6 +63,30 @@ calendar jumps to a week the class meets and outlines its blocks.
 Course-code searches list classes first. Other searches list matching rooms first and classes
 after them. Searches that are just a number (like `241`) only look at rooms.
 
+## Campus map
+
+On a computer, the main area shows a campus map until you open a room. On a phone, switch the
+sidebar from **List** to **Map**. Each building is a pin labeled with how many rooms it has.
+
+- With **Free now** or **Free at…** on, the numbers count free rooms instead: teal pins have at
+  least one free room, grey pins have none.
+- The search box narrows the map too. Course and instructor searches show the buildings where
+  matching classes meet, and the map zooms to what you found.
+- Click or tap a building for its rooms (free ones first when a filter is on), then a room for its
+  calendar. **‹ Map** brings you back with that building still open, marked in red.
+- When sorting by distance, the map shows your position (or the building you picked) and each
+  building's distance.
+- The five sites without a known location (the CALS farm units and the Center for Marine Science)
+  aren't on the map; they're still in the list.
+
+The map uses [Leaflet](https://leafletjs.com) (a copy is in `static/vendor/leaflet/`) and
+OpenStreetMap's standard map tiles, which are free for light use with attribution under the
+[tile usage policy](https://operations.osmfoundation.org/policies/tiles/). Viewing the map loads
+those tiles from OpenStreetMap's servers, so they see the visitor's IP address and which area
+is being viewed. If the site gets heavy traffic, switch `TILE_URL` in `static/index.html` to a
+provider with an account (MapTiler and Stadia have free tiers). Offline, the map shows the pins
+without the street map.
+
 ## Finding a free room
 
 Under the search box, switch from **All rooms** to **Free now** or **Free at…** to list only
@@ -133,7 +157,7 @@ any extra words filter by building or room, like the `rooms` command. `--near BU
 
 ## Using it offline, and installing it
 
-After your first visit, the site keeps a copy of itself and the schedule data on your device
+After your first visit, the site keeps a copy of itself, the schedule data and the map library on your device
 (`static/sw.js`), so it still opens with no signal. The footer says when you're seeing the saved
 copy. When you're online it always loads the latest version first.
 

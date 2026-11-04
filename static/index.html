@@ -195,7 +195,59 @@
     display: grid; min-width: 640px;
     grid-template-columns: var(--gutter) repeat(var(--days, 5), minmax(var(--colmin), 1fr));
   }
-  .room-bar { display: none; } /* phone only */
+  /* Back to the map (desktop) or the list/map (phone). The room name is only shown on a phone,
+     where the placard can scroll out of view. */
+  .room-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .room-bar-title { display: none; }
+  .back {
+    display: inline-flex; align-items: center; gap: 2px; flex: none;
+    min-height: 34px; padding: 0 12px 0 7px;
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
+    font-weight: 600; cursor: pointer;
+  }
+  .back:hover { border-color: var(--ink); }
+  .back span[aria-hidden] { font-size: 24px; line-height: 1; margin-top: -3px; }
+
+  /* ---------- campus map ---------- */
+  .viewseg { padding: 0 20px 12px; }
+  .seg.seg2 { grid-template-columns: repeat(2, 1fr); }
+  .map-fail { margin: 0; padding: 0 20px 12px; }
+  .mapview { display: grid; gap: 10px; }
+  .map-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
+  .map-head h2 { margin: 0; font: 700 26px/1.1 var(--cond); }
+  .map-note { margin: 0; color: var(--muted); font-size: 14px; }
+  #map { height: calc(100vh - 112px); min-height: 360px; border: 1px solid var(--rule); border-radius: 4px; }
+  /* Leaflet's stylesheet loads after this one, so these use #map to win. */
+  #map.leaflet-container { font: inherit; background: var(--surface); }
+  #map .leaflet-popup-content-wrapper, #map .leaflet-popup-tip { background: var(--surface); color: var(--ink); box-shadow: 0 6px 24px rgba(15, 20, 22, 0.3); }
+  #map .leaflet-popup-content-wrapper { border-radius: 6px; }
+  #map .leaflet-popup-content { margin: 14px 16px 14px; line-height: 1.4; }
+  #map a.leaflet-popup-close-button { color: var(--muted); width: 30px; height: 30px; font: 400 22px/28px var(--body); }
+  #map .leaflet-bar { border-color: var(--rule-strong); }
+  #map .leaflet-bar a { background: var(--surface); color: var(--ink); border-bottom-color: var(--rule-strong); }
+  #map .leaflet-bar a:hover { background: var(--paper); }
+  #map .leaflet-control-attribution { background: color-mix(in srgb, var(--surface) 85%, transparent); color: var(--muted); font-size: 11px; }
+  #map .leaflet-control-attribution a { color: var(--ink); }
+  .pin-wrap { background: none; border: 0; }
+  .pin {
+    display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--ink); color: var(--paper); border: 2px solid var(--surface);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    font: 700 13.5px/1 var(--cond); font-variant-numeric: tabular-nums;
+  }
+  /* OpenStreetMap only has a light style; dim and invert it to match dark mode. */
+  @media (prefers-color-scheme: dark) {
+    #map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6); }
+  }
+  .pin.free { background: var(--c1); color: #FFFFFF; }
+  .pin.none { background: var(--surface); color: var(--muted); border-color: var(--rule-strong); }
+  .pin.current { background: var(--red); color: var(--on-red); }
+  .pin.origin { box-shadow: 0 0 0 3px var(--c0), 0 1px 4px rgba(0, 0, 0, 0.35); }
+  .leaflet-marker-icon:focus { outline: none; }
+  .leaflet-marker-icon:focus-visible .pin { outline: 2px solid var(--red); outline-offset: 2px; }
+  .me-dot { fill: var(--c0); fill-opacity: 1; stroke: var(--surface); stroke-width: 3; }
+  .map-pop h3 { margin: 0 26px 2px 0; font: 700 20px/1.1 var(--cond); }
+  .map-pop p { margin: 0 0 10px; color: var(--muted); font-size: 13.5px; }
   .cal-head { display: contents; }
   .dayname {
     position: sticky; top: 0; z-index: 3;
@@ -281,6 +333,11 @@
     .app.room-open .picker { display: none; }
     .app:not(.room-open):not(.no-data) .view { display: none; }
     #directory { flex: none; overflow: visible; padding-bottom: 24px; }
+    .mapview { padding: 0 20px 20px; }
+    .map-head h2 { display: none; }
+    .map-note { font-size: 14.5px; }
+    #map { height: 68vh; min-height: 320px; }
+    .seg.seg2 label { padding: 11px 4px; }
 
     /* Bigger touch targets. Inputs at 16px or more so iOS doesn't zoom in on focus. */
     .search input, .f-row input, .f-row select, .week select { font-size: 16px; min-height: 44px; }
@@ -307,14 +364,9 @@
       height: var(--bar-h); margin: 0 -10px 14px; padding: 0 10px;
       background: var(--paper); border-bottom: 1px solid var(--rule);
     }
-    .back {
-      display: inline-flex; align-items: center; gap: 2px; flex: none;
-      min-height: 44px; padding: 0 14px 0 8px;
-      background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
-      font-weight: 600; cursor: pointer;
-    }
-    .back span { font-size: 26px; line-height: 1; margin-top: -3px; }
-    .room-bar-title { margin: 0; min-width: 0; font: 600 16px/1.2 var(--body); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .back { min-height: 44px; padding: 0 14px 0 8px; }
+    .back span[aria-hidden] { font-size: 26px; }
+    .room-bar-title { display: block; margin: 0; min-width: 0; font: 600 16px/1.2 var(--body); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .room-bar-title:focus { outline: none; }
 
     .room-head { gap: 12px; margin-bottom: 14px; }
@@ -352,7 +404,7 @@
 </head>
 <body>
 <div class="app" id="app">
-  <aside class="picker">
+  <aside class="picker" id="picker">
     <header class="brand">
       <h1>Room schedules</h1>
       <p>NC State, Fall 2026</p>
@@ -397,11 +449,26 @@
       </div>
       <p class="f-summary" id="sortNote" aria-live="polite" hidden></p>
     </div>
+    <div class="viewseg" id="viewSeg" hidden>
+      <div class="seg seg2" role="radiogroup" aria-label="Show rooms as">
+        <input type="radio" name="view" id="vList" value="list" checked><label for="vList">List</label>
+        <input type="radio" name="view" id="vMap" value="map"><label for="vMap">Map</label>
+      </div>
+    </div>
+    <p class="dir-note map-fail" id="mapFail" hidden>The map couldn't load. Check your connection; the list has every room.</p>
+    <!-- The map sits here on a phone and moves to the main area on wider screens. -->
+    <section id="mapview" class="mapview" aria-labelledby="mapTitle" hidden>
+      <div class="map-head">
+        <h2 id="mapTitle">Campus map</h2>
+        <p class="map-note" id="mapNote"></p>
+      </div>
+      <div id="map"></div>
+    </section>
     <nav id="directory" aria-label="Rooms and classes"></nav>
     <p class="source" id="source"></p>
   </aside>
 
-  <main class="view">
+  <main class="view" id="main">
     <section id="intro" class="notice">
       <h2>Pick a room</h2>
       <p>Choose a building and room number on the left to see every class section scheduled there this semester, or search for a course or instructor to find where a class meets.</p>
@@ -415,7 +482,7 @@
 
     <section id="roomview" hidden>
       <div class="room-bar">
-        <button type="button" class="back" id="backBtn"><span aria-hidden="true">&#8249;</span> Rooms</button>
+        <button type="button" class="back" id="backBtn"><span aria-hidden="true">&#8249;</span> <span id="backLabel">Rooms</span></button>
         <h2 class="room-bar-title" id="barTitle" tabindex="-1"></h2>
       </div>
       <header class="room-head">
@@ -466,6 +533,7 @@
 
   const $ = (id) => document.getElementById(id);
   const PHONE = matchMedia("(max-width: 820px)"); // keep in sync with the CSS breakpoint
+  const HOVER = matchMedia("(hover: hover)");
   // byLocation: location -> its meetings, each joined with its section. roomByLoc: location -> room entry.
   // classes: one search entry per section and room. calendar: no-class days and exam dates.
   // highlight: section id picked from the class search, outlined on the calendar.
@@ -526,6 +594,10 @@
   // { name, closed } when there are no classes on that date (a holiday or break), else undefined.
   const noClassOn = (date) => state.calendar.no_class[typeof date === "string" ? date : iso(date)];
   const isExamDay = (dateISO) => { const [a, b] = state.calendar.exams ?? []; return Boolean(a && a <= dateISO && dateISO <= b); };
+  const pref = {
+    get: (key, fallback) => { try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; } },
+    set: (key, value) => { try { localStorage.setItem(key, value); } catch {} },
+  };
   const store = {
     get: (key) => { try { const v = JSON.parse(localStorage.getItem(key)); return Array.isArray(v) ? v : []; } catch { return []; } },
     set: (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} },
@@ -565,6 +637,7 @@
     renderDirectory();
     $("q").addEventListener("input", renderDirectory);
     $("saveBtn").addEventListener("click", toggleSaved);
+    initMapControls();
     $("weekSel").addEventListener("change", (e) => { state.week = Number(e.target.value); renderRoom(); });
     $("prevWeek").addEventListener("click", () => stepWeek(-1));
     $("nextWeek").addEventListener("click", () => stepWeek(1));
@@ -585,6 +658,7 @@
       if (sort.mode === "me" && sort.origin) locate(true); // follow you as you walk
     }, 60_000);
     openFromHash();
+    renderLayout();
   }
 
   // schedule.json stores each section once; meetings are [section id, location, days, start, end].
@@ -940,26 +1014,9 @@
     const match = (r) => tokens.every((t) => r.search.includes(t));
     const filtering = filter.mode !== "all";
     const free = filter.free;
-    const current = state.room?.location;
     const found = tokens.length ? findClasses(query) : { byCode: false, list: [] };
     const classesHTML = found.list.length ? classResults(found.list) : "";
-
-    // A room button. src says which list it's in, so the right one gets focus back.
-    const chip = (r, src) => {
-      const label = src === "bldg" ? (r.room ?? r.location) : displayName(r);
-      const sections = `${r.sections} section${r.sections === 1 ? "" : "s"}`;
-      const f = free?.get(r.location);
-      let freeText = "", freeShort = "", busy = false;
-      if (filtering && f) {
-        freeText = f.free_until ? `Free until ${fmtTime(mins(f.free_until))}` : "Free the rest of the day";
-        freeShort = f.free_until ? `til ${fmtShort(mins(f.free_until))}` : "rest of day";
-      } else if (filtering && free && r.room) {
-        freeText = "Has a class then"; freeShort = "in use"; busy = true;
-      }
-      const info = [freeText, sections].filter(Boolean).join(", ");
-      return `<button type="button" class="chip${src !== "bldg" || !r.room ? " wide" : ""}" data-loc="${esc(r.location)}" data-src="${src}"
-        aria-label="${esc(displayName(r))}, ${info}" title="${info}" aria-current="${r.location === current}">${esc(label)}${freeShort ? `<small${busy ? ' class="busy"' : ""}>${freeShort}</small>` : ""}</button>`;
-    };
+    const chip = chipHTML;
     const shortlist = (title, locs, src) => {
       const list = locs.map((l) => state.roomByLoc.get(l)).filter((r) => r && match(r));
       return list.length ? `<section class="bldg"><h2>${title}</h2><div class="rooms">${list.map((r) => chip(r, src)).join("")}</div></section>` : "";
@@ -1005,14 +1062,213 @@
     $("directory").innerHTML = found.byCode
       ? classesHTML + savedHTML + roomsHTML
       : savedHTML + recentHTML + roomsHTML + classesHTML;
-    $("directory").querySelectorAll("[data-loc]").forEach((b) => b.addEventListener("click", () => {
-      state.listScroll = window.scrollY; // fallback for getting back to the same spot
-      state.anchor = { loc: b.dataset.loc, src: b.dataset.src, sid: b.dataset.sid ?? "", top: b.getBoundingClientRect().top };
-      state.highlight = b.dataset.sid ? Number(b.dataset.sid) : null;
-      const hash = "#" + encodeURIComponent(b.dataset.loc);
-      if (location.hash === hash) selectRoom(b.dataset.loc); // same room again: no hashchange
-      else location.hash = hash;
+    $("directory").querySelectorAll("[data-loc]").forEach((b) => b.addEventListener("click", () => openRoomFrom(b)));
+    // The map shows the same rooms: those matching the search, plus the rooms of any classes found.
+    const hitRooms = new Set(found.list.map((c) => c.location));
+    updateMap((r) => match(r) || hitRooms.has(r.location));
+  }
+
+  // A room button. src says which list it's in ("bldg", "saved", "recent" or "map"), so the
+  // right one gets focus back.
+  function chipHTML(r, src) {
+    const filtering = filter.mode !== "all", free = filter.free;
+    const short = src === "bldg" || src === "map";
+    const label = short ? (r.room ?? r.location) : displayName(r);
+    const sections = `${r.sections} section${r.sections === 1 ? "" : "s"}`;
+    const f = free?.get(r.location);
+    let freeText = "", freeShort = "", busy = false;
+    if (filtering && f) {
+      freeText = f.free_until ? `Free until ${fmtTime(mins(f.free_until))}` : "Free the rest of the day";
+      freeShort = f.free_until ? `til ${fmtShort(mins(f.free_until))}` : "rest of day";
+    } else if (filtering && free && r.room) {
+      freeText = "Has a class then"; freeShort = "in use"; busy = true;
+    }
+    const info = [freeText, sections].filter(Boolean).join(", ");
+    return `<button type="button" class="chip${!short || !r.room ? " wide" : ""}" data-loc="${esc(r.location)}" data-src="${src}"
+      aria-label="${esc(displayName(r))}, ${info}" title="${info}" aria-current="${r.location === state.room?.location}">${esc(label)}${freeShort ? `<small${busy ? ' class="busy"' : ""}>${freeShort}</small>` : ""}</button>`;
+  }
+
+  function openRoomFrom(b) {
+    state.listScroll = window.scrollY; // fallback for getting back to the same spot
+    state.anchor = b.dataset.src === "map" ? null
+      : { loc: b.dataset.loc, src: b.dataset.src, sid: b.dataset.sid ?? "", top: b.getBoundingClientRect().top };
+    state.highlight = b.dataset.sid ? Number(b.dataset.sid) : null;
+    const hash = "#" + encodeURIComponent(b.dataset.loc);
+    if (location.hash === hash) selectRoom(b.dataset.loc); // same room again: no hashchange
+    else location.hash = hash;
+  }
+
+  // ---------- campus map ----------
+  // Leaflet (static/vendor/leaflet) over OpenStreetMap's standard map tiles, loaded the first time
+  // the map is shown. The map is extra: the list stays the main, keyboard- and screen-reader-
+  // friendly way to browse, and still works if the map can't load.
+  // OpenStreetMap's tile servers are free for light use with attribution (see their tile usage
+  // policy). For heavy traffic, switch TILE_URL to a provider with an account (MapTiler, Stadia).
+  const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const TILE_CREDIT = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  // places: building -> { name, lat, lon, rooms }. shown: building -> rooms on the map right now.
+  // viewMode (phone only): "list" or "map". On wider screens the map shows whenever no room is open.
+  const mapState = {
+    L: null, map: null, tiles: null, loading: null, failed: false, places: new Map(), markers: new Map(),
+    shown: new Map(), isShown: () => true, me: null, lastQuery: null, fitTimer: 0, reopen: null,
+    viewMode: "list",
+  };
+
+  function initMapControls() {
+    mapState.viewMode = pref.get("roomView", "list") === "map" ? "map" : "list";
+    $(mapState.viewMode === "map" ? "vMap" : "vList").checked = true;
+    document.querySelectorAll('input[name="view"]').forEach((r) => r.addEventListener("change", () => {
+      mapState.viewMode = document.querySelector('input[name="view"]:checked').value;
+      pref.set("roomView", mapState.viewMode);
+      renderLayout();
     }));
+    PHONE.addEventListener("change", renderLayout);
+  }
+
+  // Which of the list, the map and the "Pick a room" note are on screen.
+  function renderLayout() {
+    const phone = PHONE.matches, noData = $("app").classList.contains("no-data");
+    if (phone && $("mapview").parentNode !== $("picker")) $("directory").before($("mapview"));
+    if (!phone && $("mapview").parentNode !== $("main")) $("intro").before($("mapview"));
+    const mapMode = !phone || mapState.viewMode === "map";
+    const wantMap = !noData && !state.room && mapMode && !mapState.failed;
+    $("viewSeg").hidden = !phone || noData;
+    $("mapFail").hidden = !(phone && mapState.viewMode === "map" && mapState.failed);
+    $("mapview").hidden = !wantMap;
+    $("directory").hidden = phone && mapState.viewMode === "map" && !mapState.failed;
+    $("intro").hidden = Boolean(state.room) || noData || (!phone && wantMap);
+    $("backLabel").textContent = phone ? (mapState.viewMode === "map" ? "Map" : "Rooms") : (mapState.failed ? "Close" : "Map");
+    if (!wantMap) return;
+    ensureMap().then(() => {
+      mapState.map.invalidateSize();
+      updateMap(mapState.isShown);
+      const re = mapState.reopen;
+      mapState.reopen = null;
+      const marker = re && mapState.markers.get(re.building);
+      if (marker && mapState.map.hasLayer(marker)) {
+        marker.openPopup();
+        const el = [...(marker.getPopup().getElement()?.querySelectorAll("[data-loc]") ?? [])].find((e) => e.dataset.loc === re.loc);
+        el?.focus({ preventScroll: true });
+      }
+    }).catch(() => {});
+  }
+
+  function ensureMap() {
+    if (mapState.map) return Promise.resolve(mapState.map);
+    mapState.loading ??= new Promise((resolve, reject) => {
+      const css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = "vendor/leaflet/leaflet.css";
+      document.head.append(css);
+      const js = document.createElement("script");
+      js.src = "vendor/leaflet/leaflet.js";
+      js.onload = () => (window.L ? resolve(window.L) : reject(new Error("Leaflet didn't start")));
+      js.onerror = () => reject(new Error("couldn't load the map"));
+      document.head.append(js);
+    }).then((L) => { createMap(L); return mapState.map; }).catch((err) => {
+      mapState.failed = true;
+      mapState.loading = null;
+      renderLayout();
+      throw err;
+    });
+    return mapState.loading;
+  }
+
+  function createMap(L) {
+    mapState.L = L;
+    const map = L.map("map", { maxZoom: 19, zoomSnap: 0.5 });
+    map.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
+    mapState.map = map;
+    mapState.tiles = L.tileLayer(TILE_URL, { attribution: TILE_CREDIT, maxZoom: 19 }).addTo(map);
+    for (const r of state.rooms) {
+      if (!r.room || r.lat == null) continue;
+      if (!mapState.places.has(r.building)) mapState.places.set(r.building, { name: r.building, lat: r.lat, lon: r.lon, rooms: [] });
+      mapState.places.get(r.building).rooms.push(r);
+    }
+    for (const p of mapState.places.values()) {
+      const marker = L.marker([p.lat, p.lon], { keyboard: true, riseOnHover: true });
+      marker.bindPopup(() => popupHTML(p.name), { minWidth: 220, maxWidth: 300, maxHeight: 300, autoPanPadding: [16, 16] });
+      if (HOVER.matches) marker.bindTooltip(p.name, { direction: "top", offset: [0, -16] });
+      mapState.markers.set(p.name, marker);
+    }
+    // Room buttons in popups. Capture, because Leaflet stops clicks inside popups from bubbling.
+    $("map").addEventListener("click", (e) => {
+      const b = e.target.closest?.("[data-loc]");
+      if (b) { e.preventDefault(); openRoomFrom(b); }
+    }, true);
+  }
+
+  // isShown(room): whether a room matches the search. Remembered so the map can redraw itself later.
+  function updateMap(isShown) {
+    mapState.isShown = isShown;
+    const map = mapState.map, L = mapState.L;
+    if (!map || $("mapview").hidden) return;
+    const filtering = filter.mode !== "all" && Boolean(filter.free);
+    const visible = [];
+    for (const [name, p] of mapState.places) {
+      const rooms = p.rooms.filter(isShown);
+      const free = filtering ? rooms.filter((r) => filter.free.has(r.location)).length : 0;
+      mapState.shown.set(name, { rooms, free });
+      const marker = mapState.markers.get(name);
+      if (!rooms.length) { marker.remove(); continue; }
+      visible.push(marker);
+      const n = filtering ? free : rooms.length;
+      const cls = ["pin", filtering && (free ? "free" : "none"), name === mapState.current && "current",
+        name === sort.origin?.place && "origin"].filter(Boolean).join(" ");
+      const which = rooms.length < p.rooms.length ? " matching" : "";
+      const label = filtering ? `${name}: ${free} of ${rooms.length}${which} rooms free` : `${name}: ${rooms.length}${which} room${rooms.length === 1 ? "" : "s"}`;
+      const html = `<span class="${cls}" aria-hidden="true">${n}</span><span class="sr-only">${esc(label)}</span>`;
+      if (marker.pinHTML !== html) {
+        marker.setIcon(L.divIcon({ className: "pin-wrap", html, iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -12] }));
+        marker.pinHTML = html;
+      }
+      if (!map.hasLayer(marker)) marker.addTo(map);
+      if (marker.isPopupOpen()) marker.getPopup().update();
+    }
+    // Your position, when sorting by your location.
+    const me = sort.origin && !sort.origin.place ? sort.origin : null;
+    if (me) {
+      mapState.me ??= L.circleMarker([me.lat, me.lon], { radius: 7, className: "me-dot", interactive: false });
+      mapState.me.setLatLng([me.lat, me.lon]).addTo(map);
+    } else mapState.me?.remove();
+
+    const q = $("q").value.trim();
+    const tap = HOVER.matches ? "Click" : "Tap";
+    let note = filtering ? "Numbers show how many rooms are free; grey means none." : "Numbers show how many rooms each building has.";
+    note += q ? (visible.length ? " Only buildings matching your search are shown." : " Nothing on the map matches your search.") : "";
+    $("mapNote").textContent = `${note} ${tap} a building to see its rooms.`;
+
+    // Zoom to what the search found (or back out to the whole campus).
+    if (q !== mapState.lastQuery) {
+      mapState.lastQuery = q;
+      clearTimeout(mapState.fitTimer);
+      mapState.fitTimer = setTimeout(() => {
+        const points = q && visible.length ? visible.map((m) => m.getLatLng()) : campusCore();
+        if (points.length) map.fitBounds(L.latLngBounds(points), { padding: [30, 30], maxZoom: 17 });
+      }, q ? 300 : 0);
+    }
+  }
+
+  // Buildings within 2 km of the middle of campus: main campus and Centennial, but not outlying
+  // sites like the vet school or the Friday Institute, which would make the whole map tiny.
+  function campusCore() {
+    const all = [...mapState.places.values()];
+    const mid = (k) => { const v = all.map((p) => p[k]).sort((a, b) => a - b); return v[Math.floor(v.length / 2)]; };
+    const center = { lat: mid("lat"), lon: mid("lon") };
+    const core = all.filter((p) => distance(center, p) <= 2000);
+    return (core.length ? core : all).map((p) => [p.lat, p.lon]);
+  }
+
+  function popupHTML(name) {
+    const p = mapState.places.get(name), shown = mapState.shown.get(name) ?? { rooms: [], free: 0 };
+    const filtering = filter.mode !== "all" && Boolean(filter.free);
+    const rooms = [...shown.rooms].sort((a, b) =>
+      (filtering ? (!filter.free.has(a.location)) - (!filter.free.has(b.location)) : 0) || natural(a.room, b.room));
+    let summary = filtering ? `${shown.free} of ${p.rooms.length} rooms free` : `${p.rooms.length} room${p.rooms.length === 1 ? "" : "s"}`;
+    if (shown.rooms.length < p.rooms.length) summary += ` \u00b7 ${shown.rooms.length} match your search`;
+    if (sort.origin) summary += name === sort.origin.place ? " \u00b7 the building you picked" : ` \u00b7 ${fmtDist(distance(sort.origin, p))} away`;
+    return `<div class="map-pop"><h3>${esc(name)}</h3><p>${summary}</p>
+      <div class="rooms">${rooms.map((r) => chipHTML(r, "map")).join("")}</div></div>`;
   }
 
   function openFromHash() {
@@ -1024,20 +1280,28 @@
   function closeRoom() {
     if (!state.room) return;
     const loc = state.room.location;
+    const building = state.room.building;
     state.room = null;
     state.highlight = null;
     $("app").classList.remove("room-open");
     $("roomview").hidden = true;
-    $("intro").hidden = false;
     document.title = "Room schedules, Fall 2026";
-    if (PHONE.matches) {
+    // Back on the map: mark the building you were looking at and reopen its list of rooms.
+    mapState.current = building;
+    mapState.reopen = { building, loc };
+    const onMap = !PHONE.matches || mapState.viewMode === "map";
+    if (PHONE.matches && !onMap) {
       // The list is back on screen: redraw it (Saved and Recent may have changed) and return
       // to the item you tapped.
       window.scrollTo(0, state.listScroll ?? 0);
       renderDirectoryAnchored(true, loc);
+    } else if (PHONE.matches) {
+      renderDirectory();
+      window.scrollTo(0, state.listScroll ?? 0);
     } else {
       document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-current", "false"));
     }
+    renderLayout();
   }
 
   // ---------- room ----------
@@ -1054,8 +1318,8 @@
     } else {
       renderDirectoryAnchored(true); // updates Recently viewed and the current-room marker
     }
-    $("intro").hidden = true;
     $("roomview").hidden = false;
+    renderLayout(); // hides the map and the intro
     const num = data.room ?? data.location; // building name comes from the tidied list
     $("pNum").textContent = num;
     $("pNum").classList.toggle("long", num.length > 6);

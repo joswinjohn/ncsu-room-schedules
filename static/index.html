@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Room schedules, Fall 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F6F7F5;
+    --surface: #FFFFFF;
+    --ink: #1E2528;
+    --muted: #5B666B;
+    --rule: #E0E4E5;
+    --rule-strong: #C7CDD0;
+    --red: #CC0000;
+    --on-red: #FFFFFF;
+    --placard: #1E2528;
+    --placard-ink: #F6F7F5;
+    --c0: #4156A1; --c1: #008473; --c2: #6F7D1C;
+    --c3: #D14905; --c4: #990000; --c5: #427E93;
+    --tint: 12%;
+    --body: "Barlow", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --cond: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #121618;
+      --surface: #1A1F22;
+      --ink: #E3E7E9;
+      --muted: #98A3A8;
+      --rule: #262D31;
+      --rule-strong: #384247;
+      --red: #E8423B;
+      --placard: #E3E7E9;
+      --placard-ink: #121618;
+      --c0: #8E9CE2; --c1: #45C2AF; --c2: #B5C35B;
+      --c3: #F08C4E; --c4: #E26B6B; --c5: #7FB8CB;
+      --tint: 17%;
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 15px/1.45 var(--body);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ---------- layout ---------- */
+  .app { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 100%; }
+  .picker {
+    position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--rule);
+    background: var(--paper);
+  }
+  .brand { padding: 22px 20px 12px; }
+  .brand h1 { margin: 0; font: 700 28px/1 var(--cond); letter-spacing: 0.005em; }
+  .brand p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+  .search { padding: 4px 20px 10px; }
+  .search input {
+    width: 100%; padding: 9px 11px;
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
+  }
+  .search input::placeholder { color: var(--muted); }
+
+  /* ---------- free-room filter ---------- */
+  .filter { display: grid; gap: 8px; padding: 0 20px 12px; }
+  .seg {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden;
+  }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { padding: 6px 4px; text-align: center; font: 500 13.5px/1.2 var(--body); cursor: pointer; white-space: nowrap; }
+  .seg label:not(:first-of-type) { border-left: 1px solid var(--rule-strong); }
+  .seg label:hover { background: var(--paper); }
+  .seg input:checked + label { background: var(--ink); color: var(--paper); }
+  .seg input:focus-visible + label { outline: 2px solid var(--red); outline-offset: -2px; }
+  .f-row { display: flex; align-items: center; gap: 6px; }
+  .f-row > span { color: var(--muted); font-size: 13.5px; flex: none; }
+  .f-row input, .f-row select {
+    flex: 1; min-width: 0; padding: 6px 8px;
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
+  }
+  .f-summary { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .f-summary strong { color: var(--ink); font-weight: 600; }
+  .f-summary .f-warn { display: block; margin-top: 4px; color: var(--c3); }
+  .f-summary .f-note { display: block; margin-top: 4px; font-size: 12.5px; }
+  .bldg h2 .n { font-weight: 400; color: var(--muted); }
+  .bldg h2 .dist { float: right; margin-left: 8px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .sort { grid-template-columns: minmax(0, 1fr); } /* long building names mustn't widen the sidebar */
+  .chip small { display: block; margin-top: 3px; font: 500 11px/1 var(--body); color: var(--c1); white-space: nowrap; }
+  .chip[aria-current="true"] small { color: inherit; opacity: 0.9; }
+  #directory { flex: 1; overflow-y: auto; padding: 0 20px 20px; }
+  .bldg { padding: 12px 0 4px; }
+  .bldg + .bldg { border-top: 1px solid var(--rule); }
+  .bldg h2 { margin: 0 0 7px; font: 600 14px/1.25 var(--body); }
+  .rooms { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip {
+    min-width: 46px; padding: 5px 8px 4px;
+    font: 600 15px/1 var(--cond); font-variant-numeric: tabular-nums;
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 3px;
+    cursor: pointer;
+  }
+  .chip:hover { border-color: var(--ink); }
+  .chip[aria-current="true"] { background: var(--red); border-color: var(--red); color: var(--on-red); }
+  .chip.wide { font-family: var(--body); font-weight: 500; font-size: 13px; }
+  .dir-note { color: var(--muted); font-size: 14px; padding: 12px 0; }
+  .source { margin: 0; padding: 10px 20px 14px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12.5px; }
+
+  .view { padding: 26px 30px 40px; min-width: 0; }
+
+  /* ---------- empty / notices ---------- */
+  .notice { max-width: 34rem; margin-top: 12vh; }
+  .notice h2 { font: 700 30px/1.1 var(--cond); margin: 0 0 10px; }
+  .notice p { margin: 0 0 10px; color: var(--muted); }
+  .notice code { font-size: 14px; background: var(--surface); border: 1px solid var(--rule); padding: 2px 6px; border-radius: 3px; color: var(--ink); }
+
+  /* ---------- room header ---------- */
+  .room-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px 28px; margin-bottom: 18px; }
+  .placard {
+    display: grid; gap: 6px; min-width: 210px;
+    padding: 14px 22px 16px;
+    background: var(--placard); color: var(--placard-ink);
+    border-top: 7px solid var(--red); border-radius: 2px 2px 4px 4px;
+  }
+  .placard-num { font: 700 68px/0.86 var(--cond); font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
+  .placard-num.long { font-size: 34px; line-height: 1; }
+  .placard-bldg { font: 500 15px/1.25 var(--body); opacity: 0.88; }
+  .room-info { display: grid; gap: 10px; flex: 1; min-width: 260px; }
+  .room-info p { margin: 0; }
+  .status { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .status::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+  .status.busy::before { background: var(--red); }
+  .status.free::before { background: var(--c1); }
+  .count { color: var(--muted); }
+  .week { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .week select {
+    padding: 7px 10px; min-width: 15rem;
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
+  }
+  .week button {
+    width: 34px; height: 34px; display: grid; place-items: center;
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px; cursor: pointer;
+    font-size: 18px; line-height: 1;
+  }
+  .week button:disabled { opacity: 0.4; cursor: default; }
+  .week button:not(:disabled):hover { border-color: var(--ink); }
+
+  /* ---------- calendar ---------- */
+  .cal-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  .cal { display: grid; min-width: 640px; }
+  .cal-head { display: contents; }
+  .dayname {
+    position: sticky; top: 0; z-index: 3;
+    padding: 9px 10px 8px; background: var(--surface);
+    border-bottom: 1px solid var(--rule-strong); border-left: 1px solid var(--rule);
+    font: 600 16px/1.1 var(--cond);
+  }
+  .dayname small { display: block; font: 400 13px/1.3 var(--body); color: var(--muted); }
+  .dayname.today { box-shadow: inset 0 -3px 0 var(--red); }
+  .corner { position: sticky; top: 0; z-index: 3; background: var(--surface); border-bottom: 1px solid var(--rule-strong); }
+  .gutter { position: relative; }
+  .hour { position: absolute; right: 8px; transform: translateY(-50%); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .daycol { position: relative; border-left: 1px solid var(--rule); }
+  .daycol.off { background-color: color-mix(in srgb, var(--paper) 60%, var(--surface)); }
+
+  .ev {
+    --hue: var(--c0);
+    position: absolute; z-index: 1;
+    display: flex; flex-direction: column; gap: 1px;
+    padding: 4px 6px 4px 8px; overflow: hidden; text-align: left;
+    background: color-mix(in srgb, var(--hue) var(--tint), var(--surface));
+    border: 0; border-left: 3px solid var(--hue); border-radius: 2px 4px 4px 2px;
+    cursor: pointer;
+  }
+  .ev:hover { background: color-mix(in srgb, var(--hue) calc(var(--tint) + 9%), var(--surface)); z-index: 2; }
+  .ev-code { font: 600 15px/1.1 var(--cond); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev-line { font-size: 12.5px; line-height: 1.25; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev.short { flex-direction: row; align-items: baseline; gap: 6px; padding-top: 2px; }
+  .ev.short .ev-line + .ev-line { display: none; }
+  .c0 { --hue: var(--c0); } .c1 { --hue: var(--c1); } .c2 { --hue: var(--c2); }
+  .c3 { --hue: var(--c3); } .c4 { --hue: var(--c4); } .c5 { --hue: var(--c5); }
+  .window {
+    position: absolute; left: 0; right: 0; z-index: 0; pointer-events: none;
+    background: color-mix(in srgb, var(--c1) 13%, transparent);
+    border-block: 1px dashed var(--c1);
+  }
+  .win-note { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .win-note::before {
+    content: ""; width: 14px; height: 10px; flex: none;
+    background: color-mix(in srgb, var(--c1) 13%, transparent); border: 1px dashed var(--c1);
+  }
+  .win-note strong { color: var(--ink); font-weight: 600; }
+  .now { position: absolute; left: -1px; right: 0; height: 2px; background: var(--red); z-index: 4; pointer-events: none; }
+  .now::before { content: ""; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+
+  .extra { margin: 14px 0 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
+  .extra strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- details dialog ---------- */
+  dialog {
+    width: min(30rem, calc(100vw - 32px)); max-height: calc(100vh - 48px);
+    padding: 0; border: 1px solid var(--rule-strong); border-radius: 6px;
+    background: var(--surface); color: var(--ink);
+    box-shadow: 0 18px 50px rgba(15, 20, 22, 0.28);
+  }
+  dialog::backdrop { background: rgba(18, 22, 24, 0.45); }
+  .d-close {
+    position: absolute; top: 10px; right: 10px; width: 34px; height: 34px;
+    border: 0; background: transparent; border-radius: 4px; font-size: 22px; cursor: pointer; color: var(--muted);
+  }
+  .d-close:hover { color: var(--ink); background: var(--paper); }
+  .d-sec { padding: 20px 24px 18px; }
+  .d-sec + .d-sec { border-top: 1px solid var(--rule); }
+  .d-sec h2 { margin: 0 40px 2px 0; font: 700 26px/1.05 var(--cond); }
+  .d-title { margin: 0 0 14px; color: var(--muted); }
+  dl { display: grid; grid-template-columns: 7.5rem 1fr; gap: 6px 12px; margin: 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; }
+
+  /* ---------- small screens ---------- */
+  @media (max-width: 820px) {
+    .app { grid-template-columns: 1fr; }
+    .picker { position: static; height: auto; max-height: 60vh; overflow-y: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
+    #directory { flex: none; overflow: visible; }
+    .source { display: none; }
+    .view { padding: 20px 16px 32px; }
+    .placard-num { font-size: 54px; }
+    .notice { margin-top: 4vh; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    dialog[open] { animation: rise 160ms ease-out; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="picker">
+    <header class="brand">
+      <h1>Room schedules</h1>
+      <p>NC State, Fall 2026</p>
+    </header>
+    <div class="search">
+      <label for="q" class="sr-only">Find a room</label>
+      <input id="q" type="search" placeholder="Building or room number" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="filter" role="group" aria-label="Show rooms">
+      <div class="seg">
+        <input type="radio" name="mode" id="mAll" value="all" checked><label for="mAll">All rooms</label>
+        <input type="radio" name="mode" id="mNow" value="now"><label for="mNow">Free now</label>
+        <input type="radio" name="mode" id="mAt" value="at"><label for="mAt">Free at&hellip;</label>
+      </div>
+      <div class="f-row" id="fWhen" hidden>
+        <label for="fDate" class="sr-only">Date</label>
+        <input type="date" id="fDate">
+        <label for="fTime" class="sr-only">Start time</label>
+        <input type="time" id="fTime" step="300">
+      </div>
+      <div class="f-row" id="fLenRow" hidden>
+        <label for="fLen"><span>Free for</span></label>
+        <select id="fLen">
+          <option value="1">Any length</option>
+          <option value="30">At least 30 min</option>
+          <option value="60">At least 1 hour</option>
+          <option value="90">At least 1&frac12; hours</option>
+          <option value="120">At least 2 hours</option>
+          <option value="180">At least 3 hours</option>
+          <option value="240">At least 4 hours</option>
+        </select>
+      </div>
+      <p class="f-summary" id="fSummary" aria-live="polite" hidden></p>
+    </div>
+    <div class="filter sort" role="group" aria-label="Sort rooms">
+      <div class="f-row">
+        <label for="sortSel"><span>Sort</span></label>
+        <select id="sortSel">
+          <option value="name">By building name</option>
+          <option value="me">Nearest to me</option>
+        </select>
+      </div>
+      <p class="f-summary" id="sortNote" aria-live="polite" hidden></p>
+    </div>
+    <nav id="directory" aria-label="Rooms"></nav>
+    <p class="source" id="source"></p>
+  </aside>
+
+  <main class="view">
+    <section id="intro" class="notice">
+      <h2>Pick a room</h2>
+      <p>Choose a building and room number on the left to see every class section scheduled there this semester.</p>
+    </section>
+
+    <section id="nodata" class="notice" hidden>
+      <h2>No schedule data yet</h2>
+      <p>Download the Fall 2026 sections first, then reload this page:</p>
+      <p><code>python ncsu_rooms.py fetch</code></p>
+    </section>
+
+    <section id="roomview" hidden>
+      <header class="room-head">
+        <div class="placard">
+          <span class="placard-num" id="pNum"></span>
+          <span class="placard-bldg" id="pBldg"></span>
+        </div>
+        <div class="room-info">
+          <p class="status" id="status" hidden></p>
+          <p class="win-note" id="winNote" hidden></p>
+          <p class="count" id="count"></p>
+          <div class="week">
+            <button type="button" id="prevWeek" aria-label="Previous week">&#8249;</button>
+            <label for="weekSel" class="sr-only">Week shown</label>
+            <select id="weekSel"></select>
+            <button type="button" id="nextWeek" aria-label="Next week">&#8250;</button>
+          </div>
+        </div>
+      </header>
+      <div class="cal-wrap"><div class="cal" id="cal"></div></div>
+      <p class="extra" id="extra" hidden></p>
+    </section>
+  </main>
+</div>
+
+<dialog id="detail" aria-label="Section details">
+  <form method="dialog"><button class="d-close" aria-label="Close">&times;</button></form>
+  <div id="dBody"></div>
+</dialog>
+
+<script>
+(() => {
+  const PX_PER_MIN = 1.15;
+  const DAYS = [
+    { k: "M", name: "Monday", short: "Mon" },
+    { k: "T", name: "Tuesday", short: "Tue" },
+    { k: "W", name: "Wednesday", short: "Wed" },
+    { k: "R", name: "Thursday", short: "Thu" },
+    { k: "F", name: "Friday", short: "Fri" },
+    { k: "S", name: "Saturday", short: "Sat" },
+    { k: "U", name: "Sunday", short: "Sun" },
+  ];
+  const COMPONENTS = { Lec: "Lecture", Lab: "Lab", Rec: "Recitation", Sem: "Seminar", Stu: "Studio", Dis: "Discussion", Ind: "Independent study", Res: "Research" };
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  const $ = (id) => document.getElementById(id);
+  const state = { meta: null, rooms: [], room: null, items: [], untimed: [], weeks: [], week: -1 };
+  // Free-room filter. mode: "all" | "now" | "at". result is the latest /api/free answer.
+  const filter = { mode: "all", result: null, free: null, error: "", seq: 0 };
+  // Proximity sort. mode: "name" | "me" | "b:<building>". origin: { lat, lon, place?, accuracy? } once known.
+  const sort = { mode: "name", origin: null, error: "", seq: 0 };
+
+  // ---------- helpers ----------
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const mins = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
+  const parseISO = (s) => { if (!s) return null; const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const mondayOf = (d) => addDays(d, -((d.getDay() + 6) % 7));
+  const fmtDate = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+  const fmtTime = (m, withSuffix = true) => {
+    const h = Math.floor(m / 60), mm = m % 60, h12 = ((h + 11) % 12) + 1;
+    return `${h12}:${String(mm).padStart(2, "0")}${withSuffix ? (h < 12 ? " AM" : " PM") : ""}`;
+  };
+  const fmtRange = (s, e) => `${fmtTime(s, false)}\u2013${fmtTime(e, false)}`;
+  const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const fmtClock = (m) => (m >= 24 * 60 ? "midnight" : fmtTime(m));
+  // "2:20p", for the small free-until label on a room chip.
+  const fmtShort = (m) => fmtTime(m, false) + (m < 12 * 60 ? "a" : "p");
+  // "Thu, Nov 5, 10:00 AM" or "Thu, Nov 5, 10:00 AM to 11:30 AM"
+  const fmtWindow = (r) => {
+    const d = parseISO(r.date), s = mins(r.start), e = mins(r.end);
+    const when = r.minutes > 1 ? `${fmtTime(s)} to ${fmtClock(e)}` : fmtTime(s);
+    return `${DAYS[(d.getDay() + 6) % 7].short}, ${fmtDate(d)}, ${when}`;
+  };
+  const courseCode = (m) => `${m.curriculum} ${m.number}`;
+  const hueFor = (text) => { let h = 0; for (const ch of text) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return `c${h % 6}`; };
+  // Straight-line distance in meters.
+  const distance = (a, b) => {
+    const rad = Math.PI / 180, dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+    return 2 * 6371000 * Math.asin(Math.sqrt(h));
+  };
+  // "350 ft" or "0.4 mi"
+  const fmtDist = (m) => {
+    const ft = m / 0.3048;
+    return ft < 1000 ? `${Math.max(50, Math.round(ft / 50) * 50)} ft` : `${(m / 1609.344).toFixed(1)} mi`;
+  };
+  const natural = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), undefined, { numeric: true, sensitivity: "base" });
+
+  async function getJSON(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { const err = new Error(body.error || res.statusText); err.code = body.error; throw err; }
+    return body;
+  }
+
+  // ---------- boot ----------
+  async function boot() {
+    try {
+      state.meta = await getJSON("/api/meta");
+      state.rooms = await getJSON("/api/rooms");
+    } catch (err) {
+      $("intro").hidden = true;
+      $("nodata").hidden = false;
+      if (err.code !== "no-data") {
+        $("nodata").querySelector("h2").textContent = "The schedule data couldn't be loaded";
+        $("nodata").querySelector("p").textContent = `The local server answered: ${err.message}. Restart it with python ncsu_rooms.py serve and reload.`;
+      }
+      $("directory").innerHTML = "";
+      return;
+    }
+    const fetched = state.meta.fetched_at ? new Date(state.meta.fetched_at) : null;
+    $("source").textContent = `${Number(state.meta.sections).toLocaleString()} sections from NC State Class Search` +
+      (fetched ? `, saved ${fmtDate(fetched)}, ${fetched.getFullYear()}` : "");
+    buildWeeks();
+    initFilter();
+    initSort();
+    renderDirectory();
+    $("q").addEventListener("input", renderDirectory);
+    $("weekSel").addEventListener("change", (e) => { state.week = Number(e.target.value); renderRoom(); });
+    $("prevWeek").addEventListener("click", () => stepWeek(-1));
+    $("nextWeek").addEventListener("click", () => stepWeek(1));
+    $("detail").addEventListener("click", (e) => { if (e.target === $("detail")) $("detail").close(); });
+    window.addEventListener("hashchange", openFromHash);
+    setInterval(() => {
+      if (filter.mode === "now") refreshFilter(false); // re-renders the room too
+      else if (state.room) renderRoom();
+      if (sort.mode === "me" && sort.origin) locate(true); // follow you as you walk
+    }, 60_000);
+    openFromHash();
+  }
+
+  // ---------- weeks ----------
+  function buildWeeks() {
+    const start = parseISO(state.meta.term_start), end = parseISO(state.meta.term_end);
+    const sel = $("weekSel");
+    sel.innerHTML = `<option value="-1">Whole semester</option>`;
+    state.weeks = [];
+    if (!start || !end) return;
+    for (let d = mondayOf(start), n = 1; d <= end; d = addDays(d, 7), n++) {
+      state.weeks.push(d);
+      sel.insertAdjacentHTML("beforeend", `<option value="${n - 1}">Week ${n}: ${fmtDate(d)} \u2013 ${fmtDate(addDays(d, 4))}</option>`);
+    }
+    const today = new Date();
+    if (today >= start && today <= addDays(end, 1)) {
+      const idx = state.weeks.findIndex((w) => today >= w && today < addDays(w, 7));
+      state.week = idx;
+    }
+    sel.value = String(state.week);
+  }
+  function stepWeek(delta) {
+    const next = Math.min(state.weeks.length - 1, Math.max(-1, state.week + delta));
+    if (next === state.week) return;
+    state.week = next;
+    $("weekSel").value = String(next);
+    renderRoom();
+  }
+
+  // ---------- free-room filter ----------
+  function initFilter() {
+    const now = new Date();
+    const start = parseISO(state.meta.term_start), end = parseISO(state.meta.term_end);
+    const inTerm = start && end && now >= start && now <= addDays(end, 1);
+    $("fDate").value = iso(inTerm || !start ? now : start);
+    // Default "Free at" time: the next half hour.
+    const next = Math.ceil((now.getHours() * 60 + now.getMinutes() + 1) / 30) * 30;
+    $("fTime").value = hhmm(Math.min(next, 23 * 60 + 30));
+    document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener("change", onFilterChange));
+    ["fDate", "fTime", "fLen"].forEach((id) => $(id).addEventListener("change", onFilterChange));
+  }
+
+  function filterWindow() {
+    if (filter.mode === "now") {
+      const n = new Date();
+      return { date: iso(n), start: n.getHours() * 60 + n.getMinutes() };
+    }
+    if (filter.mode === "at" && $("fDate").value && $("fTime").value) {
+      return { date: $("fDate").value, start: mins($("fTime").value) };
+    }
+    return null;
+  }
+
+  function onFilterChange() {
+    filter.mode = document.querySelector('input[name="mode"]:checked').value;
+    $("fWhen").hidden = filter.mode !== "at";
+    $("fLenRow").hidden = filter.mode === "all";
+    refreshFilter(true);
+  }
+
+  // moveWeek: jump the open room's calendar to the week being searched.
+  async function refreshFilter(moveWeek) {
+    const seq = ++filter.seq;
+    const win = filterWindow();
+    filter.result = null;
+    filter.free = null;
+    filter.error = filter.mode === "at" && !win ? "Pick a date and a start time." : "";
+    if (win) {
+      const q = new URLSearchParams({ date: win.date, start: hhmm(win.start), minutes: $("fLen").value });
+      try {
+        const res = await getJSON(`/api/free?${q}`);
+        if (seq !== filter.seq) return; // a newer search already started
+        filter.result = res;
+        filter.free = new Map(res.rooms.map((r) => [r.location, r]));
+      } catch (err) {
+        if (seq !== filter.seq) return;
+        filter.error = `Couldn't check which rooms are free: ${err.message}`;
+      }
+    }
+    renderSummary();
+    renderDirectory();
+    if (state.room) {
+      if (moveWeek) syncWeekToFilter();
+      renderRoom();
+    }
+  }
+
+  function renderSummary() {
+    const el = $("fSummary");
+    el.hidden = filter.mode === "all";
+    if (el.hidden) return;
+    const r = filter.result;
+    if (!r) { el.textContent = filter.error || "Checking…"; return; }
+    const when = filter.mode === "now" && r.minutes <= 1 ? "right now" : fmtWindow(r);
+    let html = `<strong>${r.rooms.length} of ${r.total_rooms} rooms</strong> have no class ${esc(when)}.`;
+    if (!r.in_term) {
+      const s = parseISO(state.meta.term_start), e = parseISO(state.meta.term_end);
+      html += `<span class="f-warn">That day is outside the regular term${s && e ? ` (${fmtDate(s)} – ${fmtDate(e)})` : ""}, so few or no classes meet.</span>`;
+    }
+    html += `<span class="f-note">Counts class sections only. Buildings may be locked, and rooms can be booked for other events.</span>`;
+    el.innerHTML = html;
+  }
+
+  function syncWeekToFilter() {
+    if (!filter.result) return;
+    const d = parseISO(filter.result.date);
+    const idx = state.weeks.findIndex((w) => d >= w && d < addDays(w, 7));
+    if (idx === -1) return;
+    state.week = idx;
+    $("weekSel").value = String(idx);
+  }
+
+  // ---------- proximity sort ----------
+  function initSort() {
+    const sel = $("sortSel");
+    const places = new Map();
+    for (const r of state.rooms) if (r.place && !places.has(r.place)) places.set(r.place, { lat: r.lat, lon: r.lon });
+    sort.places = places;
+    const group = document.createElement("optgroup");
+    group.label = "Nearest to a building";
+    for (const name of [...places.keys()].sort(natural)) group.append(new Option(name, `b:${name}`));
+    sel.append(group);
+    sel.addEventListener("change", () => setSort(sel.value, true));
+    let saved = "name";
+    try { saved = localStorage.getItem("roomSort") || "name"; } catch {}
+    if (saved.startsWith("b:") && places.has(saved.slice(2))) setSort(saved, false);
+    else if (saved === "me" && navigator.permissions) {
+      // Only ask for your location on load if you've already allowed it; otherwise wait for a click.
+      navigator.permissions.query({ name: "geolocation" })
+        .then((p) => { if (p.state === "granted") { setSort("me", false); renderDirectory(); } })
+        .catch(() => {});
+    }
+  }
+
+  function setSort(value, fromUser) {
+    sort.mode = value;
+    sort.seq++;
+    sort.error = "";
+    sort.origin = null;
+    $("sortSel").value = value;
+    if (fromUser) try { localStorage.setItem("roomSort", value); } catch {}
+    if (value.startsWith("b:")) {
+      const name = value.slice(2);
+      sort.origin = { ...sort.places.get(name), place: name };
+    } else if (value === "me") {
+      locate(false);
+    }
+    renderSortNote();
+    if (fromUser) renderDirectory();
+  }
+
+  // quiet: a background refresh, so keep the current order until the new position arrives.
+  function locate(quiet) {
+    if (!navigator.geolocation) {
+      sort.error = "This browser can't share your location. Pick a building from the Sort menu instead.";
+      renderSortNote();
+      return;
+    }
+    const seq = sort.seq;
+    navigator.geolocation.getCurrentPosition((pos) => {
+      if (seq !== sort.seq) return; // the sort changed while we were waiting
+      const next = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
+      const moved = !sort.origin || distance(sort.origin, next) > 25;
+      sort.origin = next;
+      sort.error = "";
+      renderSortNote();
+      if (moved) renderDirectory();
+    }, (err) => {
+      if (seq !== sort.seq || (quiet && sort.origin)) return;
+      sort.error = err.code === err.PERMISSION_DENIED
+        ? "Location access is blocked for this page. Allow it in your browser, or pick a building from the Sort menu."
+        : "Couldn't find your location. Try again, or pick a building from the Sort menu.";
+      renderSortNote();
+      renderDirectory();
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
+  }
+
+  function renderSortNote() {
+    const el = $("sortNote");
+    el.hidden = sort.mode === "name";
+    if (el.hidden) return;
+    if (sort.error) { el.innerHTML = `<span class="f-warn">${esc(sort.error)}</span>`; return; }
+    const o = sort.origin;
+    if (!o) { el.textContent = "Finding your location\u2026"; return; }
+    let html = `Nearest to <strong>${o.place ? esc(o.place) : "you"}</strong> first, by straight-line distance.`;
+    if (!o.place) {
+      const nearest = Math.min(...[...sort.places.values()].map((p) => distance(o, p)));
+      if (nearest > 5000) html += `<span class="f-warn">You're about ${fmtDist(nearest)} from the nearest building, so this order may not help much yet.</span>`;
+      else if (o.accuracy > 150) html += `<span class="f-note">Your location is only accurate to about ${fmtDist(o.accuracy)}, so nearby buildings may be out of order.</span>`;
+    }
+    el.innerHTML = html;
+  }
+
+  // ---------- directory ----------
+  function renderDirectory() {
+    const tokens = $("q").value.toLowerCase().split(/\s+/).filter(Boolean);
+    const match = (r) => tokens.every((t) => r.location.toLowerCase().includes(t));
+    const filtering = filter.mode !== "all";
+    const free = filter.free;
+    const rooms = state.rooms.filter((r) => match(r) && (!filtering || (free && free.has(r.location))));
+    const roomsPerBuilding = new Map();
+    for (const r of state.rooms) if (r.room) roomsPerBuilding.set(r.building, (roomsPerBuilding.get(r.building) ?? 0) + 1);
+    const groups = new Map();
+    for (const r of rooms) {
+      const name = r.room ? r.building : "Other locations";
+      if (!groups.has(name)) groups.set(name, []);
+      groups.get(name).push(r);
+    }
+    // Distance per building group, when sorting by proximity. Unknown locations sort last.
+    const dist = new Map();
+    if (sort.origin) {
+      for (const [name, list] of groups) {
+        const r = list.find((x) => x.lat != null);
+        if (name !== "Other locations" && r) dist.set(name, { m: distance(sort.origin, r), here: r.place === sort.origin.place });
+      }
+    }
+    const byDistance = (a, b) => !dist.size ? 0
+      : (!dist.has(a) - !dist.has(b)) || ((dist.get(a)?.m ?? 0) - (dist.get(b)?.m ?? 0));
+    const names = [...groups.keys()].sort((a, b) => (a === "Other locations") - (b === "Other locations") || byDistance(a, b) || natural(a, b));
+    const current = state.room?.location;
+    const html = names.map((name) => {
+      const chips = groups.get(name).sort((a, b) => natural(a.room ?? a.location, b.room ?? b.location)).map((r) => {
+        const label = r.room ?? r.location;
+        const sections = `${r.sections} section${r.sections === 1 ? "" : "s"}`;
+        const f = free?.get(r.location);
+        let freeText = "", freeShort = "";
+        if (filtering && f) {
+          freeText = f.free_until ? `Free until ${fmtTime(mins(f.free_until))}` : "Free the rest of the day";
+          freeShort = f.free_until ? `til ${fmtShort(mins(f.free_until))}` : "rest of day";
+        }
+        const info = [freeText, sections].filter(Boolean).join(", ");
+        return `<button type="button" class="chip${r.room ? "" : " wide"}" data-loc="${esc(r.location)}"
+          aria-label="${esc(r.location)}, ${info}" title="${info}" aria-current="${r.location === current}">${esc(label)}${freeShort ? `<small>${freeShort}</small>` : ""}</button>`;
+      }).join("");
+      const count = filtering && roomsPerBuilding.has(name) ? ` <span class="n">\u00b7 ${groups.get(name).length} of ${roomsPerBuilding.get(name)} free</span>` : "";
+      const d = dist.get(name);
+      const away = d ? `<span class="dist">${d.here ? "here" : fmtDist(d.m)}</span>` : "";
+      return `<section class="bldg"><h2>${away}${esc(name)}${count}</h2><div class="rooms">${chips}</div></section>`;
+    }).join("");
+    let empty;
+    if (filtering && !free) empty = filter.error || "Checking which rooms are free\u2026";
+    else if (filtering && tokens.length) empty = `None of the rooms matching \u201c${esc($("q").value)}\u201d are free then. Try a different time or a shorter length.`;
+    else if (filtering) empty = "Every room has a class then. Try a different time or a shorter length.";
+    else empty = `No rooms match \u201c${esc($("q").value)}\u201d. Try part of a building name, like \u201cmann\u201d or \u201cengineering\u201d.`;
+    $("directory").innerHTML = html || `<p class="dir-note">${empty}</p>`;
+    $("directory").querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => {
+      location.hash = encodeURIComponent(b.dataset.loc);
+    }));
+  }
+
+  function openFromHash() {
+    const loc = decodeURIComponent(location.hash.slice(1));
+    if (loc) selectRoom(loc);
+  }
+
+  // ---------- room ----------
+  async function selectRoom(loc) {
+    let data;
+    try { data = await getJSON(`/api/room?location=${encodeURIComponent(loc)}`); }
+    catch (err) { return; }
+    if (!data.meetings.length) return;
+    state.room = data;
+    prepareItems(data.meetings);
+    document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-current", String(c.dataset.loc === loc)));
+    $("intro").hidden = true;
+    $("roomview").hidden = false;
+    const num = data.room ?? data.location;
+    $("pNum").textContent = num;
+    $("pNum").classList.toggle("long", num.length > 6);
+    $("pBldg").textContent = data.room ? data.building : "";
+    $("pBldg").hidden = !data.room;
+    document.title = `${data.location}, Fall 2026 room schedule`;
+    if (filter.mode !== "all") syncWeekToFilter();
+    renderRoom();
+    if (matchMedia("(max-width: 820px)").matches) {
+      const smooth = matchMedia("(prefers-reduced-motion: no-preference)").matches;
+      $("roomview").scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+    }
+  }
+
+  // One block per day/time; sections that share a slot (cross-listed courses) merge into one block.
+  function prepareItems(meetings) {
+    const slots = new Map();
+    state.untimed = [];
+    for (const m of meetings) {
+      if (!m.start_time || !m.end_time || !m.days) { state.untimed.push(m); continue; }
+      for (const day of m.days) {
+        const key = [day, m.start_time, m.end_time, m.start_date, m.end_date].join("|");
+        if (!slots.has(key)) {
+          slots.set(key, { day, s: mins(m.start_time), e: mins(m.end_time), start: parseISO(m.start_date), end: parseISO(m.end_date), sections: [] });
+        }
+        const slot = slots.get(key);
+        if (!slot.sections.some((x) => x.section_id === m.section_id)) slot.sections.push(m);
+      }
+    }
+    state.items = [...slots.values()];
+  }
+
+  const activeOn = (item, date) => (!item.start || date >= item.start) && (!item.end || date <= item.end);
+
+  function renderRoom() {
+    const week = state.week >= 0 ? state.weeks[state.week] : null;
+    $("prevWeek").disabled = state.week <= -1;
+    $("nextWeek").disabled = state.week >= state.weeks.length - 1;
+
+    const ids = new Set(state.room.meetings.map((m) => m.section_id));
+    $("count").textContent = `${ids.size} section${ids.size === 1 ? "" : "s"} meet here this semester`;
+    renderStatus();
+    renderWindowNote();
+    renderCalendar(week);
+
+    const extra = $("extra");
+    if (state.untimed.length) {
+      const list = [...new Map(state.untimed.map((m) => [m.section_id, `${courseCode(m)} ${m.section}`])).values()];
+      extra.innerHTML = `<strong>Assigned here without a set time:</strong> ${esc(list.join(", "))}`;
+      extra.hidden = false;
+    } else extra.hidden = true;
+  }
+
+  function renderStatus() {
+    const el = $("status");
+    const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const start = parseISO(state.meta.term_start), end = parseISO(state.meta.term_end);
+    if (!start || today < start || today > end) { el.hidden = true; return; }
+    const dayKey = DAYS[(now.getDay() + 6) % 7].k;
+    const t = now.getHours() * 60 + now.getMinutes();
+    const todays = state.items.filter((i) => i.day === dayKey && activeOn(i, today)).sort((a, b) => a.s - b.s);
+    const current = todays.filter((i) => i.s <= t && t < i.e);
+    el.hidden = false;
+    if (current.length) {
+      const until = Math.max(...current.map((i) => i.e));
+      el.className = "status busy";
+      el.textContent = `Class in session until ${fmtTime(until)}`;
+      return;
+    }
+    const next = todays.find((i) => i.s > t);
+    el.className = "status free";
+    el.textContent = next ? `No class until ${fmtTime(next.s)}` : "No more classes today";
+  }
+
+  // "Shaded: Thu, Nov 5, 10:00 AM to 11:00 AM, free" when a free-room search is on.
+  function renderWindowNote() {
+    const el = $("winNote"), r = filter.mode !== "all" && state.room.room ? filter.result : null;
+    el.hidden = !r;
+    if (!r) return;
+    const isFree = filter.free.has(state.room.location);
+    const until = filter.free.get(state.room.location)?.free_until;
+    const verdict = isFree
+      ? `free${until ? ` until ${fmtTime(mins(until))}` : " the rest of the day"}`
+      : "has a class then";
+    el.innerHTML = `<span>Shaded: ${esc(fmtWindow(r))}, <strong>${verdict}</strong></span>`;
+  }
+
+  function renderCalendar(week) {
+    const items = state.items;
+    let days = DAYS.slice(0, 5);
+    if (items.some((i) => i.day === "S")) days.push(DAYS[5]);
+    if (items.some((i) => i.day === "U")) days.push(DAYS[6]);
+
+    // Keep the time range steady while paging weeks.
+    const earliest = Math.min(...items.map((i) => i.s), 8 * 60);
+    const latest = Math.max(...items.map((i) => i.e), 17 * 60);
+    const startH = Math.floor(earliest / 60), endH = Math.ceil(latest / 60);
+    const top = startH * 60, height = (endH - startH) * 60 * PX_PER_MIN;
+    const hourPx = 60 * PX_PER_MIN;
+
+    const now = new Date(), todayISO = iso(now), nowMin = now.getHours() * 60 + now.getMinutes();
+    const cal = $("cal");
+    cal.style.gridTemplateColumns = `58px repeat(${days.length}, minmax(112px, 1fr))`;
+    cal.style.setProperty("--hour", `${hourPx}px`);
+
+    let html = `<div class="corner"></div>`;
+    const dates = days.map((d) => (week ? addDays(week, DAYS.indexOf(d)) : null));
+    days.forEach((d, i) => {
+      const date = dates[i];
+      const isToday = date && iso(date) === todayISO;
+      html += `<div class="dayname${isToday ? " today" : ""}">${d.short}${date ? `<small>${fmtDate(date)}</small>` : ""}</div>`;
+    });
+
+    html += `<div class="gutter" style="height:${height}px">`;
+    for (let h = startH + 1; h < endH; h++) {
+      const label = `${((h + 11) % 12) + 1} ${h < 12 ? "AM" : "PM"}`;
+      html += `<span class="hour" style="top:${(h - startH) * hourPx}px">${label}</span>`;
+    }
+    html += `</div>`;
+
+    const lines = `background-image: repeating-linear-gradient(to bottom, var(--rule) 0 1px, transparent 1px ${hourPx}px), repeating-linear-gradient(to bottom, transparent 0 ${hourPx / 2}px, color-mix(in srgb, var(--rule) 55%, transparent) ${hourPx / 2}px ${hourPx / 2 + 1}px, transparent ${hourPx / 2 + 1}px ${hourPx}px);`;
+    const termStart = state.meta.term_start, termEnd = state.meta.term_end;
+    days.forEach((d, i) => {
+      const date = dates[i];
+      const dayItems = items.filter((it) => it.day === d.k && (!date || activeOn(it, date)));
+      layout(dayItems);
+      const off = date && dayItems.length === 0 && items.some((it) => it.day === d.k);
+      html += `<div class="daycol${off ? " off" : ""}" style="height:${height}px;${lines}">`;
+      for (const it of dayItems) {
+        const y = (it.s - top) * PX_PER_MIN, h = Math.max((it.e - it.s) * PX_PER_MIN - 2, 18);
+        const w = 100 / it.cols;
+        const codes = [...new Set(it.sections.map(courseCode))];
+        const first = it.sections[0];
+        const secLine = it.sections.length > 1 ? `${it.sections.length} sections together` : `${first.section} ${COMPONENTS[first.component] ?? first.component}`;
+        const partial = (first.start_date && first.start_date !== termStart) || (first.end_date && first.end_date !== termEnd);
+        const dateLine = partial && it.start && it.end ? `${fmtDate(it.start)}\u2013${fmtDate(it.end)}` : "";
+        const label = `${codes.join(" and ")}, ${secLine}, ${d.name} ${fmtTime(it.s)} to ${fmtTime(it.e)}${dateLine ? `, ${dateLine}` : ""}`;
+        html += `<button type="button" class="ev ${hueFor(codes[0])}${h < 40 ? " short" : ""}" data-key="${esc(itemKey(it))}"
+          style="top:${y}px;height:${h}px;left:calc(${it.col * w}% + 3px);width:calc(${w}% - 6px)" aria-label="${esc(label)}">
+          <span class="ev-code">${esc(codes.join(" / "))}</span>
+          <span class="ev-line">${fmtRange(it.s, it.e)}${h >= 58 ? "" : ` ${esc(secLine)}`}</span>
+          ${h >= 58 ? `<span class="ev-line">${esc(secLine)}</span>` : ""}
+          ${dateLine && h >= 76 ? `<span class="ev-line">${esc(dateLine)}</span>` : ""}
+        </button>`;
+      }
+      const win = filter.mode !== "all" ? filter.result : null;
+      if (win && (date ? iso(date) === win.date : d.k === win.day)) {
+        // Clamp the searched window to the hours this calendar shows.
+        const ws = Math.max(mins(win.start), top), we = Math.min(mins(win.end), endH * 60);
+        if (we > ws) {
+          html += `<div class="window" style="top:${(ws - top) * PX_PER_MIN}px;height:${Math.max((we - ws) * PX_PER_MIN, 2)}px" aria-hidden="true"></div>`;
+        }
+      }
+      if (date && iso(date) === todayISO && nowMin >= top && nowMin <= endH * 60) {
+        html += `<div class="now" style="top:${(nowMin - top) * PX_PER_MIN}px" aria-hidden="true"></div>`;
+      }
+      html += `</div>`;
+    });
+    cal.innerHTML = html;
+    cal.querySelectorAll(".ev").forEach((b) => b.addEventListener("click", () => showDetail(b.dataset.key)));
+  }
+
+  const itemKey = (it) => `${it.day}|${it.s}|${it.e}|${it.sections[0].start_date}|${it.sections[0].end_date}`;
+
+  // Side-by-side columns for blocks that overlap in time.
+  function layout(items) {
+    items.sort((a, b) => a.s - b.s || b.e - a.e);
+    let cluster = [], clusterEnd = -1;
+    const flush = () => {
+      const colEnds = [];
+      for (const it of cluster) {
+        let c = colEnds.findIndex((end) => end <= it.s);
+        if (c === -1) { c = colEnds.length; colEnds.push(it.e); } else colEnds[c] = it.e;
+        it.col = c;
+      }
+      cluster.forEach((it) => (it.cols = colEnds.length));
+      cluster = [];
+    };
+    for (const it of items) {
+      if (cluster.length && it.s >= clusterEnd) { flush(); clusterEnd = -1; }
+      cluster.push(it);
+      clusterEnd = Math.max(clusterEnd, it.e);
+    }
+    if (cluster.length) flush();
+  }
+
+  // ---------- details ----------
+  function showDetail(key) {
+    const it = state.items.find((x) => itemKey(x) === key);
+    if (!it) return;
+    const body = it.sections.map((m) => {
+      const days = DAYS.filter((d) => m.days.includes(d.k)).map((d) => d.short).join(", ");
+      const s = parseISO(m.start_date), e = parseISO(m.end_date);
+      const seats = m.total_seats != null
+        ? `${m.open_seats} of ${m.total_seats} open${m.waitlist ? `, ${m.waitlist} on the waitlist` : ""}`
+        : "";
+      const rows = [
+        ["Section", `${m.section}, ${COMPONENTS[m.component] ?? m.component}`],
+        ["Meets", `${days} ${fmtTime(mins(m.start_time))} \u2013 ${fmtTime(mins(m.end_time))}`],
+        ["Dates", s && e ? `${fmtDate(s)} \u2013 ${fmtDate(e)}, ${e.getFullYear()}` : ""],
+        ["Instructor", m.instructor],
+        ["Enrollment", [m.status, seats].filter(Boolean).join(": ")],
+        ["Class number", m.class_nbr],
+      ].filter(([, v]) => v);
+      return `<section class="d-sec">
+        <h2>${esc(courseCode(m))}</h2>
+        <p class="d-title">${esc(m.title || "")}</p>
+        <dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+      </section>`;
+    }).join("");
+    $("dBody").innerHTML = body;
+    $("detail").showModal();
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

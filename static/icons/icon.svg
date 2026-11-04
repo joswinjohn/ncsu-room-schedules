@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- NC State red, full bleed so it also works as a maskable (cropped) icon -->
+  <rect width="512" height="512" fill="#CC0000"/>
+  <!-- a week calendar: the glyph stays inside the central safe zone -->
+  <rect x="128" y="140" width="256" height="236" rx="24" fill="#FFFFFF"/>
+  <path d="M152 140h208a24 24 0 0 1 24 24v36H128v-36a24 24 0 0 1 24-24z" fill="#1E2528"/>
+  <rect x="176" y="116" width="20" height="48" rx="10" fill="#1E2528"/>
+  <rect x="316" y="116" width="20" height="48" rx="10" fill="#1E2528"/>
+  <rect x="152" y="222" width="60" height="56" rx="8" fill="#CC0000"/>
+  <rect x="226" y="222" width="60" height="122" rx="8" fill="#008473"/>
+  <rect x="300" y="222" width="60" height="56" rx="8" fill="#CC0000"/>
+  <rect x="152" y="292" width="60" height="52" rx="8" fill="#4156A1"/>
+  <rect x="300" y="292" width="60" height="52" rx="8" fill="#D14905"/>
+</svg>

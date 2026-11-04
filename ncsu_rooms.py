@@ -76,6 +76,22 @@ SEARCH_FORM = {
 
 USER_AGENT = "ncsu-room-schedules/1.0 (personal student project)"
 
+# Days with no classes, from the registrar's Fall 2026 academic calendar. Class Search
+# doesn't know about these, so they're listed by hand: update them along with TERM_CODE
+# each term. On these days every room counts as free and the calendar shows the day off.
+NO_CLASS_DAYS = {
+    "2026-09-07": {"name": "Labor Day", "closed": True},
+    "2026-09-29": {"name": "Wellness Day", "closed": False},
+    "2026-10-19": {"name": "Fall Break", "closed": False},
+    "2026-10-20": {"name": "Fall Break", "closed": False},
+    "2026-11-25": {"name": "Thanksgiving Break", "closed": False},
+    "2026-11-26": {"name": "Thanksgiving Break", "closed": True},
+    "2026-11-27": {"name": "Thanksgiving Break", "closed": True},
+    "2026-12-02": {"name": "Reading Day", "closed": False},
+}
+# Final exams follow their own schedule, which Class Search doesn't list.
+EXAM_DAYS = ("2026-12-03", "2026-12-09")
+
 # --------------------------------------------------------------------------- #
 # Parsing the Class Search HTML
 # --------------------------------------------------------------------------- #
@@ -285,15 +301,30 @@ def parse_subject_html(html: str, subject: str):
 
 
 def split_location(location: str | None) -> tuple[str | None, str | None]:
-    """'Mann Hall 406' -> ('Mann Hall', '406'). Non-rooms like 'Internet' -> ('Internet', None)."""
+    """'406 Mann Hall' -> ('Mann Hall', '406'). Non-rooms like 'Internet' -> ('Internet', None).
+
+    Class Search puts the room number first, so that's checked first: otherwise
+    '1208 Engineering Building 3' would become room '3' of '1208 Engineering Building'.
+    """
     if not location:
         return None, None
     parts = location.split()
-    if len(parts) >= 2 and ROOM_TOKEN.match(parts[-1]):
-        return " ".join(parts[:-1]), parts[-1]
     if len(parts) >= 2 and ROOM_TOKEN.match(parts[0]):
         return " ".join(parts[1:]), parts[0]
+    if len(parts) >= 2 and ROOM_TOKEN.match(parts[-1]):
+        return " ".join(parts[:-1]), parts[-1]
     return location, None
+
+
+def building_name(location: str | None) -> tuple[str | None, str | None]:
+    """(building, room) with one consistent name per building, so 'Dabney hall',
+    '1911 Bldg' and 'Schaub Food Science Bu' are listed with the rest of their building."""
+    building, room = split_location(location)
+    if room:
+        place = place_of(location)
+        if place:
+            building = place[0]
+    return building, room
 
 
 # --------------------------------------------------------------------------- #
@@ -304,7 +335,7 @@ def split_location(location: str | None) -> tuple[str | None, str | None]:
 # location text, because Class Search spells and truncates names in several ways
 # ("Schaub Food Science Bu", "Leazer Hall", "3003 Engineering Bldg 1"). The first match
 # wins, so more specific patterns come first. Coordinates are building centers from
-# OpenStreetMap. Buildings missing here (farm units, off-campus sites) sort last.
+# OpenStreetMap. Buildings without coordinates sort last.
 BUILDINGS = [
     ("111 Lampe Drive", r"\blampe\b", 35.78565, -78.66801),
     ("1911 Building", r"\b1911 b", 35.78654, -78.66733),
@@ -372,12 +403,20 @@ BUILDINGS = [
     ("Winston Hall", r"\bwinston\b", 35.78696, -78.66637),
     ("Witherspoon Student Center", r"\bwitherspoon\b", 35.78511, -78.67452),
     ("Withers Hall", r"\bwithers\b", 35.78634, -78.66785),
+    # Known names but no coordinates (farm units and off-campus sites): these only tidy
+    # up Class Search's cut-off names, and still sort last by distance.
+    ("CALS Equine Stallion Barn", r"\bequine stallion\b", None, None),
+    ("CALS Poultry Teaching Building", r"\bpoultry teaching\b", None, None),
+    ("CALS Small Ruminant Building", r"\bsmall ruminant\b", None, None),
+    ("CALS Swine Building (Lake Wheeler)", r"\bswine b", None, None),
+    ("Center for Marine Science", r"\bcenter for marine\b", None, None),
 ]
 BUILDING_PATTERNS = [(name, re.compile(pattern), lat, lon) for name, pattern, lat, lon in BUILDINGS]
 
 
-def place_of(location: str | None) -> tuple[str, float, float] | None:
-    """'Leazer Hall 101' -> ('Leazar Hall', lat, lon), or None when the building isn't known."""
+def place_of(location: str | None) -> tuple[str, float | None, float | None] | None:
+    """'101 Leazer Hall' -> ('Leazar Hall', lat, lon), or None when the building isn't known.
+    lat and lon are None for buildings whose location isn't known."""
     text = (location or "").lower()
     for name, pattern, lat, lon in BUILDING_PATTERNS:
         if pattern.search(text):
@@ -595,7 +634,7 @@ def build_database(courses: dict, sections: dict, subject_count: int) -> dict:
         if sec.end_date:
             ends[sec.end_date] += 1
         for m in sec.meetings:
-            building, room = split_location(m.location)
+            building, room = building_name(m.location)
             con.execute(
                 "INSERT INTO meetings (section_id, days, start_time, end_time, location, building, room)"
                 " VALUES (?,?,?,?,?,?,?)",
@@ -756,6 +795,8 @@ def cmd_free(args) -> None:
         origin = find_place(args.near)
         if origin is None:
             sys.exit(f"Couldn't find a building matching {args.near!r}. Try part of its name, like talley or hunt.")
+        if origin[1] is None:
+            sys.exit(f"{origin[0]}'s location isn't known, so it can't be used with --near.")
     con = open_db()
     result = find_free_rooms(con, date, start, minutes)
     tokens = " ".join(args.filter).lower().split()
@@ -764,7 +805,7 @@ def cmd_free(args) -> None:
     if origin:
         for r in rooms:
             place = place_of(r["location"])
-            if place:
+            if place and place[1] is not None:
                 distances[r["location"]] = distance_m(origin[1], origin[2], place[1], place[2])
         # Nearest first; rooms in buildings without a known location go last. Python's
         # sort is stable, so rooms in the same building keep their room-number order.
@@ -782,16 +823,22 @@ def cmd_free(args) -> None:
             until = f"free until {clock_label(r['free_until'])}"
         else:
             until = "free the rest of the day"
+        name = f"{r['room']} {r['building']}"  # tidied building name
         if origin:
             away = distance_label(distances[r["location"]]) if r["location"] in distances else "?"
-            print(f"{r['location']:<45} {away:>7}   {until}")
+            print(f"{name:<45} {away:>7}   {until}")
         else:
-            print(f"{r['location']:<45} {until}")
+            print(f"{name:<45} {until}")
     if tokens:
         print(f"\n{len(rooms)} matching rooms free")
     else:
         print(f"\n{len(rooms)} of {result['total_rooms']} rooms free")
-    if not result["in_term"]:
+    if result["no_class"]:
+        closed = " and the university is closed" if result["no_class"]["closed"] else ""
+        print(f"Note: {date:%b} {date.day} is {result['no_class']['name']}: no classes{closed}.")
+    elif result["exams"]:
+        print("Note: that's during final exams, which follow their own schedule (not listed here).")
+    elif not result["in_term"]:
         print("Note: that date is outside the regular term, so few or no classes are scheduled.")
     print("Only class sections are counted; buildings may be locked and rooms booked for other events.")
 
@@ -860,6 +907,7 @@ def export_site(con) -> int:
         "sections": sections,
         # [section id, location, days, start "HH:MM" or null, end "HH:MM" or null]
         "meetings": meetings,
+        "calendar": {"no_class": NO_CLASS_DAYS, "exams": list(EXAM_DAYS)},
     }
     body = json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     SCHEDULE_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -925,12 +973,14 @@ def find_free_rooms(con, date: dt.date, start: int, minutes: int) -> dict:
 
     Only numbered rooms that appear somewhere in the schedule are considered. A section
     counts on `date` when that weekday is one of its meeting days and `date` falls within
-    the section's start and end dates. The window is cut off at midnight.
+    the section's start and end dates, unless it's one of NO_CLASS_DAYS. The window is cut
+    off at midnight.
     """
     minutes = max(1, int(minutes))
     end = min(start + minutes, 24 * 60)
     day = DAY_ORDER[date.weekday()]
     day_iso = date.isoformat()
+    no_class = NO_CLASS_DAYS.get(day_iso)
     rooms = {
         r["location"]: {"location": r["location"], "building": r["building"], "room": r["room"],
                         "free_from": None, "free_until": None}
@@ -947,8 +997,9 @@ def find_free_rooms(con, date: dt.date, start: int, minutes: int) -> dict:
           AND instr(COALESCE(m.days, ''), ?) > 0
           AND (COALESCE(s.start_date, '') = '' OR s.start_date <= ?)
           AND (COALESCE(s.end_date, '') = '' OR s.end_date >= ?)
+          AND ? = 0
         """,
-        (day, day_iso, day_iso),
+        (day, day_iso, day_iso, 1 if no_class else 0),
     )
     s_txt, e_txt = hhmm(start), hhmm(end)
     for r in rows:
@@ -974,6 +1025,8 @@ def find_free_rooms(con, date: dt.date, start: int, minutes: int) -> dict:
         "end": "24:00" if end == 24 * 60 else e_txt,
         "minutes": end - start,
         "in_term": bool(term_start and term_end and term_start <= day_iso <= term_end),
+        "no_class": no_class,
+        "exams": EXAM_DAYS[0] <= day_iso <= EXAM_DAYS[1],
         "total_rooms": len(rooms),
         "rooms": free,
     }

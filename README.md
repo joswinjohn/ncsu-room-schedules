@@ -40,13 +40,28 @@ python ncsu_rooms.py export             # rewrite static/data/schedule.json (fet
 
 - Search by building or room number in the sidebar, then click a room.
 - The week menu defaults to the current week. Half-semester classes only appear in the weeks they actually meet. Choose "Whole semester" to see everything at once.
+- Weeks with a holiday or break are labeled in the week menu ("Week 10: Oct 19 – Oct 23 · Fall
+  Break"), and those days show as "No classes" on the calendar.
 - Cross-listed sections that share a time slot (like a 400- and 500-level pair) show as one block.
 - Click any block for the section, instructor, dates, and enrollment.
 - The status line ("No class until 2:20 PM") only knows about scheduled class sections, not events, exams, or study groups.
-- Each room has its own link (e.g. `http://localhost:8000/#Mann%20Hall%20406`), so you can bookmark rooms.
+- Each room has its own link (e.g. `http://localhost:8000/#1321%20Fitts-Woolard%20Hall`), so you can bookmark rooms.
+- **Save room** (next to the section count) pins a room to a "Saved rooms" list at the top of the
+  sidebar. The rooms you've opened lately show under "Recently viewed". Both are kept in your
+  browser only. With a free-room filter on, they show whether each room is free or in use.
 - On a phone, the room list fills the screen. Tap a room for a full-page calendar of its week,
   then tap **‹ Rooms** (or use your phone's back gesture) to return to the list where you left
   off. The week fits the screen without sideways scrolling; tap any class for its details.
+
+## Finding a class
+
+The search box also finds classes. Type a course code (`MA 241`, `csc116`, or `ma 241 001` for one
+section), words from a course title (`soils foundations`), or an instructor's name. Each result
+shows the section, when it meets, the room and the instructor. Click one to open that room: the
+calendar jumps to a week the class meets and outlines its blocks.
+
+Course-code searches list classes first. Other searches list matching rooms first and classes
+after them. Searches that are just a number (like `241`) only look at rooms.
 
 ## Finding a free room
 
@@ -62,8 +77,17 @@ rooms with no class scheduled at that moment.
 - **Free now** updates every minute.
 - "Free" only means no class section is scheduled. Buildings may be locked (especially at night and
   on weekends), and rooms can be booked for exams, events, or meetings that Class Search doesn't
-  list. Holidays and breaks aren't known either, so a date during break still shows the regular
-  class schedule.
+  list.
+- On holidays and breaks every room counts as free, with a note saying which day it is and
+  whether the university is closed. During final exams (Dec 3–9) a note warns that the exam
+  schedule isn't listed, so rooms may be in use.
+
+## Holidays and breaks
+
+Class Search doesn't know about holidays, so the no-class days from the registrar's academic
+calendar are listed by hand in `NO_CLASS_DAYS` near the top of `ncsu_rooms.py`. The final exam
+dates are in `EXAM_DAYS`. Update both each term along with `TERM_CODE`, then run
+`python ncsu_rooms.py export`.
 
 ## Sorting by distance
 
@@ -107,6 +131,19 @@ any extra words filter by building or room, like the `rooms` command. `--near BU
 5. `serve` is a small static file server (standard library only), so what you see locally is
    exactly what gets deployed.
 
+## Using it offline, and installing it
+
+After your first visit, the site keeps a copy of itself and the schedule data on your device
+(`static/sw.js`), so it still opens with no signal. The footer says when you're seeing the saved
+copy. When you're online it always loads the latest version first.
+
+On a phone you can add it to your home screen, where it opens like an app: in Safari use Share →
+Add to Home Screen, and in Chrome use the menu → Add to Home screen or Install app. Offline
+support needs `https://` (which Cloudflare provides) or `localhost`.
+
+If you change `index.html` or the data, there's nothing to bump: the next online visit picks up
+the new files. Change the `CACHE` name in `sw.js` only if you rename or remove files.
+
 ## Putting it online (Cloudflare Workers)
 
 The site is just the files in `static/`, and `wrangler.jsonc` tells Cloudflare to serve them as
@@ -144,9 +181,11 @@ git push
   top of `ncsu_rooms.py` and add anything new.
 - **Some rows were skipped:** details go to `data/parse_errors.log`. The raw HTML for each
   subject is in `data/raw/2268/`, which makes it easy to see what the parser didn't expect.
-- **A room is split in two** (e.g. different spellings of a building): the room list comes
-  straight from the location text in Class Search. `split_location()` in `ncsu_rooms.py` decides
-  where the building name ends and the room number starts.
+- **A building shows up under two names:** Class Search spells some buildings several ways
+  ("Dabney hall", "1911 Bldg", "Schaub Food Science Bu"). Each spelling is matched to one name by
+  the patterns in `BUILDINGS` in `ncsu_rooms.py`; add or adjust a pattern, then run `fetch` again.
+  It re-reads the saved files, so nothing is downloaded. `split_location()` decides where the room
+  number ends and the building name starts (Class Search puts the number first).
 - **Rooms with no number** (like "Internet") are grouped under "Other locations".
 
 Be considerate with `--refresh`: it sends one request per subject (a couple hundred in total),

@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Room schedules, Fall 2026</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Rooms">
+<meta name="theme-color" content="#F6F7F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121618" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
@@ -118,6 +124,20 @@
   .chip[aria-current="true"] { background: var(--red); border-color: var(--red); color: var(--on-red); }
   .chip.wide { font-family: var(--body); font-weight: 500; font-size: 13px; }
   .dir-note { color: var(--muted); font-size: 14px; padding: 12px 0; }
+  .chip small.busy { color: var(--muted); }
+
+  /* class search results */
+  .hits { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .hit {
+    display: grid; gap: 2px; width: 100%; padding: 8px 10px; text-align: left;
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px; cursor: pointer;
+  }
+  .hit:hover { border-color: var(--ink); }
+  .hit-head { font: 600 16px/1.15 var(--cond); }
+  .hit-head .hit-comp { font: 500 13px/1 var(--body); color: var(--muted); }
+  .hit-title { font-size: 13.5px; line-height: 1.3; }
+  .hit-line { font-size: 12.5px; line-height: 1.3; color: var(--muted); }
+  .classes .dir-note { padding: 8px 0 0; font-size: 13px; }
   .source { margin: 0; padding: 10px 20px 14px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12.5px; }
 
   .view { padding: 26px 30px 40px; min-width: 0; }
@@ -139,13 +159,22 @@
   .placard-num { font: 700 68px/0.86 var(--cond); font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
   .placard-num.long { font-size: 34px; line-height: 1; }
   .placard-bldg { font: 500 15px/1.25 var(--body); opacity: 0.88; }
-  .room-info { display: grid; gap: 10px; flex: 1; min-width: 260px; }
+  .room-info { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; flex: 1; min-width: 260px; } /* long week labels mustn't widen the page */
   .room-info p { margin: 0; }
   .status { font-weight: 600; display: flex; align-items: center; gap: 8px; }
   .status::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
   .status.busy::before { background: var(--red); }
   .status.free::before { background: var(--c1); }
   .count { color: var(--muted); }
+  .count-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; }
+  .save {
+    display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 0 11px;
+    background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 4px;
+    font-weight: 500; font-size: 14px; cursor: pointer;
+  }
+  .save:hover { border-color: var(--ink); }
+  .save span { font-size: 16px; line-height: 1; }
+  .save[aria-pressed="true"] span { color: var(--red); }
   .week { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .week select {
     padding: 7px 10px; min-width: 15rem;
@@ -213,6 +242,9 @@
     background: color-mix(in srgb, var(--c1) 13%, transparent); border: 1px dashed var(--c1);
   }
   .win-note strong { color: var(--ink); font-weight: 600; }
+  .ev.hl { outline: 2px solid var(--ink); outline-offset: 1px; z-index: 3; }
+  .dayoff { position: absolute; top: 10px; left: 4px; right: 4px; text-align: center; font-size: 12.5px; line-height: 1.3; color: var(--muted); }
+  .dayoff strong { display: block; color: var(--ink); font-weight: 600; }
   .now { position: absolute; left: -1px; right: 0; height: 2px; background: var(--red); z-index: 4; pointer-events: none; }
   .now::before { content: ""; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
 
@@ -260,6 +292,12 @@
     .chip { min-width: 60px; min-height: 44px; padding: 8px 10px 7px; font-size: 18px; }
     .chip.wide { font-size: 14.5px; }
     .chip small { font-size: 12px; }
+    .hit { padding: 10px 12px; }
+    .hit-head { font-size: 17px; }
+    .hit-title { font-size: 14.5px; }
+    .hit-line { font-size: 13.5px; }
+    .save { min-height: 44px; padding: 0 14px; font-size: 15px; }
+    .dayoff { font-size: 11px; left: 1px; right: 1px; }
 
     .view { --bar-h: 58px; padding: 0 10px 28px; }
     .notice { margin-top: 0; padding: 28px 6px; }
@@ -320,8 +358,8 @@
       <p>NC State, Fall 2026</p>
     </header>
     <div class="search">
-      <label for="q" class="sr-only">Find a room</label>
-      <input id="q" type="search" placeholder="Building or room number" autocomplete="off" spellcheck="false">
+      <label for="q" class="sr-only">Find a room or class</label>
+      <input id="q" type="search" placeholder="Room, course or instructor" autocomplete="off" spellcheck="false">
     </div>
     <div class="filter" role="group" aria-label="Show rooms">
       <div class="seg">
@@ -359,14 +397,14 @@
       </div>
       <p class="f-summary" id="sortNote" aria-live="polite" hidden></p>
     </div>
-    <nav id="directory" aria-label="Rooms"></nav>
+    <nav id="directory" aria-label="Rooms and classes"></nav>
     <p class="source" id="source"></p>
   </aside>
 
   <main class="view">
     <section id="intro" class="notice">
       <h2>Pick a room</h2>
-      <p>Choose a building and room number on the left to see every class section scheduled there this semester.</p>
+      <p>Choose a building and room number on the left to see every class section scheduled there this semester, or search for a course or instructor to find where a class meets.</p>
     </section>
 
     <section id="nodata" class="notice" hidden>
@@ -388,7 +426,10 @@
         <div class="room-info">
           <p class="status" id="status" hidden></p>
           <p class="win-note" id="winNote" hidden></p>
-          <p class="count" id="count"></p>
+          <div class="count-row">
+            <p class="count" id="count"></p>
+            <button type="button" class="save" id="saveBtn" aria-pressed="false"></button>
+          </div>
           <div class="week">
             <button type="button" id="prevWeek" aria-label="Previous week">&#8249;</button>
             <label for="weekSel" class="sr-only">Week shown</label>
@@ -420,13 +461,19 @@
     { k: "S", name: "Saturday", short: "Sat" },
     { k: "U", name: "Sunday", short: "Sun" },
   ];
-  const COMPONENTS = { Lec: "Lecture", Lab: "Lab", Rec: "Recitation", Sem: "Seminar", Stu: "Studio", Dis: "Discussion", Ind: "Independent study", Res: "Research" };
+  const COMPONENTS = { Lec: "Lecture", Lab: "Lab", Rec: "Recitation", Sem: "Seminar", Stu: "Studio", Dis: "Discussion", Ind: "Independent study", Res: "Research", Cli: "Clinical" };
   const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   const $ = (id) => document.getElementById(id);
   const PHONE = matchMedia("(max-width: 820px)"); // keep in sync with the CSS breakpoint
   // byLocation: location -> its meetings, each joined with its section. roomByLoc: location -> room entry.
-  const state = { meta: null, rooms: [], byLocation: new Map(), roomByLoc: new Map(), room: null, items: [], untimed: [], weeks: [], week: -1 };
+  // classes: one search entry per section and room. calendar: no-class days and exam dates.
+  // highlight: section id picked from the class search, outlined on the calendar.
+  // saved / recent: room locations, kept in this browser.
+  const state = {
+    meta: null, rooms: [], byLocation: new Map(), roomByLoc: new Map(), classes: [], calendar: { no_class: {}, exams: [] },
+    room: null, items: [], untimed: [], weeks: [], week: -1, highlight: null, saved: [], recent: [], anchor: null,
+  };
   // Free-room filter. mode: "all" | "now" | "at". result is the latest findFreeRooms() answer.
   const filter = { mode: "all", result: null, free: null, error: "" };
   // Proximity sort. mode: "name" | "me" | "b:<building>". origin: { lat, lon, place?, accuracy? } once known.
@@ -468,7 +515,21 @@
     const ft = m / 0.3048;
     return ft < 1000 ? `${Math.max(50, Math.round(ft / 50) * 50)} ft` : `${(m / 1609.344).toFixed(1)} mi`;
   };
-  const natural = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), undefined, { numeric: true, sensitivity: "base" });
+  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+  const natural = (a, b) => collator.compare(String(a ?? ""), String(b ?? ""));
+  // "425 Dabney Hall": room number and the tidied building name (Class Search spells some oddly).
+  const displayName = (r) => (r.room ? `${r.room} ${r.building}` : r.location);
+  // "Barman,Konica; Lee,Ann" -> "Konica Barman, Ann Lee"
+  const fmtInstructor = (text) => String(text ?? "").split(/;\s*/).filter(Boolean)
+    .map((n) => { const [last, first] = n.split(","); return first ? `${first.trim()} ${last.trim()}` : n.trim(); }).join(", ");
+  const fmtDays = (days) => DAYS.filter((d) => (days ?? "").includes(d.k)).map((d) => d.short).join("/");
+  // { name, closed } when there are no classes on that date (a holiday or break), else undefined.
+  const noClassOn = (date) => state.calendar.no_class[typeof date === "string" ? date : iso(date)];
+  const isExamDay = (dateISO) => { const [a, b] = state.calendar.exams ?? []; return Boolean(a && a <= dateISO && dateISO <= b); };
+  const store = {
+    get: (key) => { try { const v = JSON.parse(localStorage.getItem(key)); return Array.isArray(v) ? v : []; } catch { return []; } },
+    set: (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} },
+  };
 
   async function getJSON(url) {
     const res = await fetch(url, { cache: "no-cache" }); // revalidate, so a new export shows up
@@ -493,14 +554,17 @@
       $("directory").innerHTML = "";
       return;
     }
-    const fetched = state.meta.fetched_at ? new Date(state.meta.fetched_at) : null;
-    $("source").textContent = `${Number(state.meta.sections).toLocaleString()} sections from NC State Class Search` +
-      (fetched ? `, saved ${fmtDate(fetched)}, ${fetched.getFullYear()}` : "");
+    renderSource();
+    window.addEventListener("online", renderSource);
+    window.addEventListener("offline", renderSource);
+    state.saved = store.get("savedRooms").filter((loc) => state.roomByLoc.has(loc));
+    state.recent = store.get("recentRooms").filter((loc) => state.roomByLoc.has(loc));
     buildWeeks();
     initFilter();
     initSort();
     renderDirectory();
     $("q").addEventListener("input", renderDirectory);
+    $("saveBtn").addEventListener("click", toggleSaved);
     $("weekSel").addEventListener("change", (e) => { state.week = Number(e.target.value); renderRoom(); });
     $("prevWeek").addEventListener("click", () => stepWeek(-1));
     $("nextWeek").addEventListener("click", () => stepWeek(1));
@@ -527,14 +591,25 @@
   function indexSchedule(data) {
     state.meta = data.meta;
     state.rooms = data.rooms;
+    state.calendar = { no_class: data.calendar?.no_class ?? {}, exams: data.calendar?.exams ?? [] };
+    for (const r of state.rooms) r.search = `${r.location} ${r.building ?? ""}`.toLowerCase();
     state.roomByLoc = new Map(data.rooms.map((r) => [r.location, r]));
     state.byLocation = new Map();
+    const classes = new Map();
     for (const [id, location, days, start, end] of data.meetings) {
       const sec = data.sections[id];
       if (!sec) continue;
       if (!state.byLocation.has(location)) state.byLocation.set(location, []);
       state.byLocation.get(location).push({ section_id: id, ...sec, days, start_time: start, end_time: end });
+      const key = `${id}|${location}`;
+      if (!classes.has(key)) {
+        const words = `${sec.curriculum} ${sec.number} ${sec.title ?? ""} ${sec.instructor ?? ""}`.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+        classes.set(key, { id, location, sec, times: [], words });
+      }
+      classes.get(key).times.push({ days, start, end });
     }
+    state.classes = [...classes.values()].sort((a, b) =>
+      natural(a.sec.curriculum, b.sec.curriculum) || natural(a.sec.number, b.sec.number) || natural(a.sec.section, b.sec.section));
     const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
     for (const list of state.byLocation.values()) {
       list.sort((a, b) => cmp(a.start_time ?? "", b.start_time ?? "") || cmp(a.curriculum, b.curriculum) ||
@@ -544,9 +619,10 @@
 
   // Rooms with no class section meeting at any point in [start, start + minutes) on dateISO.
   // A section counts on a date when that weekday is one of its meeting days and the date falls
-  // within its start and end dates. The window is cut off at midnight. Mirrors find_free_rooms()
-  // in ncsu_rooms.py, which the `free` command uses.
+  // within its start and end dates, unless it's a no-class day (holiday or break). The window is
+  // cut off at midnight. Mirrors find_free_rooms() in ncsu_rooms.py, which the `free` command uses.
   function findFreeRooms(dateISO, start, minutes) {
+    const noClass = noClassOn(dateISO) ?? null;
     const end = Math.min(start + Math.max(1, minutes), 24 * 60);
     const day = DAYS[(parseISO(dateISO).getDay() + 6) % 7].k;
     const s = hhmm(start), e = hhmm(end); // "HH:MM" strings compare correctly as text
@@ -555,7 +631,7 @@
       if (r.room) rooms.set(r.location, { location: r.location, building: r.building, room: r.room, free_from: null, free_until: null });
     }
     const busy = new Set();
-    for (const [location, room] of rooms) {
+    for (const [location, room] of noClass ? [] : rooms) {
       for (const m of state.byLocation.get(location) ?? []) {
         if (!m.start_time || !m.end_time || !(m.days ?? "").includes(day)) continue;
         if ((m.start_date && m.start_date > dateISO) || (m.end_date && m.end_date < dateISO)) continue;
@@ -571,9 +647,18 @@
     return {
       date: dateISO, day, start: s, end: e, minutes: end - start,
       in_term: Boolean(ts && te && ts <= dateISO && dateISO <= te),
+      no_class: noClass,
+      exams: isExamDay(dateISO),
       total_rooms: rooms.size,
       rooms: [...rooms.values()].filter((r) => !busy.has(r.location)),
     };
+  }
+
+  function renderSource() {
+    const fetched = state.meta.fetched_at ? new Date(state.meta.fetched_at) : null;
+    $("source").textContent = `${Number(state.meta.sections).toLocaleString()} sections from NC State Class Search` +
+      (fetched ? `, saved ${fmtDate(fetched)}, ${fetched.getFullYear()}` : "") +
+      (navigator.onLine ? "" : ". You're offline, so this is the copy saved on this device.");
   }
 
   // ---------- weeks ----------
@@ -585,7 +670,15 @@
     if (!start || !end) return;
     for (let d = mondayOf(start), n = 1; d <= end; d = addDays(d, 7), n++) {
       state.weeks.push(d);
-      sel.insertAdjacentHTML("beforeend", `<option value="${n - 1}">Week ${n}: ${fmtDate(d)} \u2013 ${fmtDate(addDays(d, 4))}</option>`);
+      // "Week 10: Oct 19 – Oct 23 · Fall Break"
+      const notes = new Set();
+      for (let i = 0; i < 5; i++) {
+        const day = addDays(d, i);
+        if (noClassOn(day)) notes.add(noClassOn(day).name);
+        else if (isExamDay(iso(day))) notes.add("Final exams");
+      }
+      const tag = notes.size ? ` \u00b7 ${[...notes].join(", ")}` : "";
+      sel.insertAdjacentHTML("beforeend", `<option value="${n - 1}">Week ${n}: ${fmtDate(d)} \u2013 ${fmtDate(addDays(d, 4))}${esc(tag)}</option>`);
     }
     const today = new Date();
     if (today >= start && today <= addDays(end, 1)) {
@@ -655,7 +748,11 @@
     if (!r) { el.textContent = filter.error || "Checking…"; return; }
     const when = filter.mode === "now" && r.minutes <= 1 ? "right now" : fmtWindow(r);
     let html = `<strong>${r.rooms.length} of ${r.total_rooms} rooms</strong> have no class ${esc(when)}.`;
-    if (!r.in_term) {
+    if (r.no_class) {
+      html += `<span class="f-warn">${esc(r.no_class.name)}: no classes${r.no_class.closed ? ", and the university is closed" : ""}.</span>`;
+    } else if (r.exams) {
+      html += `<span class="f-warn">Final exams week. Exams follow their own schedule, which isn't listed here, so rooms may be in use.</span>`;
+    } else if (!r.in_term) {
       const s = parseISO(state.meta.term_start), e = parseISO(state.meta.term_end);
       html += `<span class="f-warn">That day is outside the regular term${s && e ? ` (${fmtDate(s)} – ${fmtDate(e)})` : ""}, so few or no classes meet.</span>`;
     }
@@ -753,12 +850,123 @@
     el.innerHTML = html;
   }
 
+  // ---------- class search ----------
+  const COURSE_RE = /^([a-z]{1,4})\s*(\d{1,3}[a-z]?)(?:\s+(\d{1,3}[a-z]?))?$/;
+  const CLASS_LIMIT = 40;
+
+  // "MA 241", "csc116" or "ma 241 001" look up course codes; anything else matches words at the
+  // start of course codes, titles and instructor names. Room-number searches like "241" and very
+  // short words are left to the room list.
+  function findClasses(query) {
+    const q = query.trim().toLowerCase();
+    const code = q.match(COURSE_RE);
+    if (code) {
+      const [, cur, num, sec] = code;
+      return { byCode: true, list: state.classes.filter((c) => c.sec.curriculum.toLowerCase() === cur &&
+        c.sec.number.toLowerCase().startsWith(num) && (!sec || c.sec.section.toLowerCase().startsWith(sec))) };
+    }
+    const tokens = q.split(/[^a-z0-9]+/).filter(Boolean);
+    if (!tokens.some((t) => t.length >= 3 && /[a-z]/.test(t))) return { byCode: false, list: [] };
+    return { byCode: false, list: state.classes.filter((c) => tokens.every((t) => c.words.some((w) => w.startsWith(t)))) };
+  }
+
+  function classResults(list) {
+    const items = list.slice(0, CLASS_LIMIT).map((c) => {
+      const s = c.sec, room = state.roomByLoc.get(c.location);
+      const when = c.times.filter((t) => t.start && t.end)
+        .map((t) => `${fmtDays(t.days)} ${fmtTime(mins(t.start), false)}\u2013${fmtTime(mins(t.end))}`).join(", ") || "No set time";
+      const where = room ? displayName(room) : c.location;
+      const comp = COMPONENTS[s.component] ?? s.component;
+      return `<li><button type="button" class="hit" data-loc="${esc(c.location)}" data-sid="${c.id}" data-src="hit">
+        <span class="hit-head">${esc(s.curriculum)} ${esc(s.number)} <span class="hit-comp">\u00b7 ${esc(s.section)} ${esc(comp)}</span></span>
+        ${s.title ? `<span class="hit-title">${esc(s.title)}</span>` : ""}
+        <span class="hit-line">${esc(when)} \u00b7 ${esc(where)}</span>
+        ${s.instructor ? `<span class="hit-line">${esc(fmtInstructor(s.instructor))}</span>` : ""}
+      </button></li>`;
+    }).join("");
+    const more = list.length > CLASS_LIMIT
+      ? `<p class="dir-note">Showing ${CLASS_LIMIT} of ${list.length}. Type more to narrow it down, like a course number or section.</p>` : "";
+    return `<section class="bldg classes"><h2>Classes <span class="n">\u00b7 ${list.length}</span></h2><ul class="hits">${items}</ul>${more}</section>`;
+  }
+
+  // ---------- saved and recent rooms ----------
+  function toggleSaved() {
+    const loc = state.room?.location;
+    if (!loc) return;
+    state.saved = state.saved.includes(loc) ? state.saved.filter((l) => l !== loc) : [...state.saved, loc];
+    store.set("savedRooms", state.saved);
+    renderSaveButton();
+    if (!PHONE.matches) renderDirectoryAnchored(); // on a phone the list redraws when you go back
+  }
+
+  function renderSaveButton() {
+    const on = state.saved.includes(state.room.location);
+    const b = $("saveBtn");
+    b.setAttribute("aria-pressed", String(on));
+    b.innerHTML = on ? `<span aria-hidden="true">\u2605</span> Saved` : `<span aria-hidden="true">\u2606</span> Save room`;
+  }
+
+  function rememberRecent(loc) {
+    state.recent = [loc, ...state.recent.filter((l) => l !== loc)].slice(0, 12);
+    store.set("recentRooms", state.recent);
+  }
+
+  // Redraw the list but keep the item you clicked where it was on screen (and focused), even
+  // though the Saved and Recent sections above it may have changed size.
+  // fallbackLoc: with nothing clicked (the room was opened from a link), show that room's button.
+  function renderDirectoryAnchored(focus = false, fallbackLoc = null) {
+    const a = state.anchor;
+    renderDirectory();
+    const items = [...$("directory").querySelectorAll("[data-loc]")];
+    const el = a && items.find((e) => e.dataset.loc === a.loc && e.dataset.src === a.src && (e.dataset.sid ?? "") === a.sid);
+    if (el) {
+      const delta = el.getBoundingClientRect().top - a.top;
+      if (PHONE.matches) window.scrollBy(0, delta);
+      else $("directory").scrollTop += delta;
+      if (focus) el.focus({ preventScroll: true });
+      return;
+    }
+    const other = fallbackLoc && items.find((e) => e.dataset.loc === fallbackLoc && e.dataset.src === "bldg");
+    if (other && focus) {
+      other.scrollIntoView({ block: "center" });
+      other.focus({ preventScroll: true });
+    }
+  }
+
   // ---------- directory ----------
   function renderDirectory() {
-    const tokens = $("q").value.toLowerCase().split(/\s+/).filter(Boolean);
-    const match = (r) => tokens.every((t) => r.location.toLowerCase().includes(t));
+    const query = $("q").value;
+    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const match = (r) => tokens.every((t) => r.search.includes(t));
     const filtering = filter.mode !== "all";
     const free = filter.free;
+    const current = state.room?.location;
+    const found = tokens.length ? findClasses(query) : { byCode: false, list: [] };
+    const classesHTML = found.list.length ? classResults(found.list) : "";
+
+    // A room button. src says which list it's in, so the right one gets focus back.
+    const chip = (r, src) => {
+      const label = src === "bldg" ? (r.room ?? r.location) : displayName(r);
+      const sections = `${r.sections} section${r.sections === 1 ? "" : "s"}`;
+      const f = free?.get(r.location);
+      let freeText = "", freeShort = "", busy = false;
+      if (filtering && f) {
+        freeText = f.free_until ? `Free until ${fmtTime(mins(f.free_until))}` : "Free the rest of the day";
+        freeShort = f.free_until ? `til ${fmtShort(mins(f.free_until))}` : "rest of day";
+      } else if (filtering && free && r.room) {
+        freeText = "Has a class then"; freeShort = "in use"; busy = true;
+      }
+      const info = [freeText, sections].filter(Boolean).join(", ");
+      return `<button type="button" class="chip${src !== "bldg" || !r.room ? " wide" : ""}" data-loc="${esc(r.location)}" data-src="${src}"
+        aria-label="${esc(displayName(r))}, ${info}" title="${info}" aria-current="${r.location === current}">${esc(label)}${freeShort ? `<small${busy ? ' class="busy"' : ""}>${freeShort}</small>` : ""}</button>`;
+    };
+    const shortlist = (title, locs, src) => {
+      const list = locs.map((l) => state.roomByLoc.get(l)).filter((r) => r && match(r));
+      return list.length ? `<section class="bldg"><h2>${title}</h2><div class="rooms">${list.map((r) => chip(r, src)).join("")}</div></section>` : "";
+    };
+    const savedHTML = shortlist("Saved rooms", state.saved, "saved");
+    const recentHTML = tokens.length ? "" : shortlist("Recently viewed", state.recent.filter((l) => !state.saved.includes(l)).slice(0, 6), "recent");
+
     const rooms = state.rooms.filter((r) => match(r) && (!filtering || (free && free.has(r.location))));
     const roomsPerBuilding = new Map();
     for (const r of state.rooms) if (r.room) roomsPerBuilding.set(r.building, (roomsPerBuilding.get(r.building) ?? 0) + 1);
@@ -779,35 +987,31 @@
     const byDistance = (a, b) => !dist.size ? 0
       : (!dist.has(a) - !dist.has(b)) || ((dist.get(a)?.m ?? 0) - (dist.get(b)?.m ?? 0));
     const names = [...groups.keys()].sort((a, b) => (a === "Other locations") - (b === "Other locations") || byDistance(a, b) || natural(a, b));
-    const current = state.room?.location;
     const html = names.map((name) => {
-      const chips = groups.get(name).sort((a, b) => natural(a.room ?? a.location, b.room ?? b.location)).map((r) => {
-        const label = r.room ?? r.location;
-        const sections = `${r.sections} section${r.sections === 1 ? "" : "s"}`;
-        const f = free?.get(r.location);
-        let freeText = "", freeShort = "";
-        if (filtering && f) {
-          freeText = f.free_until ? `Free until ${fmtTime(mins(f.free_until))}` : "Free the rest of the day";
-          freeShort = f.free_until ? `til ${fmtShort(mins(f.free_until))}` : "rest of day";
-        }
-        const info = [freeText, sections].filter(Boolean).join(", ");
-        return `<button type="button" class="chip${r.room ? "" : " wide"}" data-loc="${esc(r.location)}"
-          aria-label="${esc(r.location)}, ${info}" title="${info}" aria-current="${r.location === current}">${esc(label)}${freeShort ? `<small>${freeShort}</small>` : ""}</button>`;
-      }).join("");
+      const chips = groups.get(name).sort((a, b) => natural(a.room ?? a.location, b.room ?? b.location)).map((r) => chip(r, "bldg")).join("");
       const count = filtering && roomsPerBuilding.has(name) ? ` <span class="n">\u00b7 ${groups.get(name).length} of ${roomsPerBuilding.get(name)} free</span>` : "";
       const d = dist.get(name);
       const away = d ? `<span class="dist">${d.here ? "here" : fmtDist(d.m)}</span>` : "";
       return `<section class="bldg"><h2>${away}${esc(name)}${count}</h2><div class="rooms">${chips}</div></section>`;
     }).join("");
-    let empty;
+    let empty = "";
     if (filtering && !free) empty = filter.error || "Checking which rooms are free\u2026";
-    else if (filtering && tokens.length) empty = `None of the rooms matching \u201c${esc($("q").value)}\u201d are free then. Try a different time or a shorter length.`;
+    else if (classesHTML && !html) empty = ""; // the class results are the answer
+    else if (filtering && tokens.length) empty = `None of the rooms matching \u201c${esc(query)}\u201d are free then. Try a different time or a shorter length.`;
     else if (filtering) empty = "Every room has a class then. Try a different time or a shorter length.";
-    else empty = `No rooms match \u201c${esc($("q").value)}\u201d. Try part of a building name, like \u201cmann\u201d or \u201cengineering\u201d.`;
-    $("directory").innerHTML = html || `<p class="dir-note">${empty}</p>`;
-    $("directory").querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => {
-      state.listScroll = window.scrollY; // to come back to the same spot in the list
-      location.hash = encodeURIComponent(b.dataset.loc);
+    else empty = `Nothing matches \u201c${esc(query)}\u201d. Try part of a building name like \u201cfitts\u201d, a course like \u201cMA 241\u201d, or an instructor\u2019s last name.`;
+    const roomsHTML = html || (empty ? `<p class="dir-note">${empty}</p>` : "");
+    // Course-code searches put classes first; word searches put rooms first.
+    $("directory").innerHTML = found.byCode
+      ? classesHTML + savedHTML + roomsHTML
+      : savedHTML + recentHTML + roomsHTML + classesHTML;
+    $("directory").querySelectorAll("[data-loc]").forEach((b) => b.addEventListener("click", () => {
+      state.listScroll = window.scrollY; // fallback for getting back to the same spot
+      state.anchor = { loc: b.dataset.loc, src: b.dataset.src, sid: b.dataset.sid ?? "", top: b.getBoundingClientRect().top };
+      state.highlight = b.dataset.sid ? Number(b.dataset.sid) : null;
+      const hash = "#" + encodeURIComponent(b.dataset.loc);
+      if (location.hash === hash) selectRoom(b.dataset.loc); // same room again: no hashchange
+      else location.hash = hash;
     }));
   }
 
@@ -821,15 +1025,18 @@
     if (!state.room) return;
     const loc = state.room.location;
     state.room = null;
+    state.highlight = null;
     $("app").classList.remove("room-open");
     $("roomview").hidden = true;
     $("intro").hidden = false;
     document.title = "Room schedules, Fall 2026";
-    const chips = [...document.querySelectorAll(".chip")];
-    chips.forEach((c) => c.setAttribute("aria-current", "false"));
     if (PHONE.matches) {
+      // The list is back on screen: redraw it (Saved and Recent may have changed) and return
+      // to the item you tapped.
       window.scrollTo(0, state.listScroll ?? 0);
-      chips.find((c) => c.dataset.loc === loc)?.focus({ preventScroll: true });
+      renderDirectoryAnchored(true, loc);
+    } else {
+      document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-current", "false"));
     }
   }
 
@@ -840,24 +1047,51 @@
     const data = { location: loc, building: info.building, room: info.room, meetings };
     state.room = data;
     prepareItems(data.meetings);
-    document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-current", String(c.dataset.loc === loc)));
+    if (state.highlight != null && !meetings.some((m) => m.section_id === state.highlight)) state.highlight = null;
+    rememberRecent(loc);
+    if (PHONE.matches) {
+      document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-current", String(c.dataset.loc === loc)));
+    } else {
+      renderDirectoryAnchored(true); // updates Recently viewed and the current-room marker
+    }
     $("intro").hidden = true;
     $("roomview").hidden = false;
-    const num = data.room ?? data.location;
+    const num = data.room ?? data.location; // building name comes from the tidied list
     $("pNum").textContent = num;
     $("pNum").classList.toggle("long", num.length > 6);
     $("pBldg").textContent = data.room ? data.building : "";
     $("pBldg").hidden = !data.room;
-    $("barTitle").textContent = data.location;
-    document.title = `${data.location}, Fall 2026 room schedule`;
+    $("barTitle").textContent = displayName(data);
+    document.title = `${displayName(data)}, Fall 2026 room schedule`;
     $("app").classList.add("room-open");
     if (filter.mode !== "all") syncWeekToFilter();
+    if (state.highlight != null) weekForSection(state.highlight);
+    renderSaveButton();
     renderRoom();
     if (PHONE.matches) {
       // A new screen: start at the top and tell screen readers which room this is.
       window.scrollTo(0, 0);
       $("barTitle").focus({ preventScroll: true });
     }
+    // Bring the class you searched for into view.
+    $("cal").querySelector(".ev.hl")?.scrollIntoView({ block: "center" });
+  }
+
+  // Show a week the searched-for section actually meets: this week if it does, otherwise the
+  // next one (half-semester classes don't meet every week). "Whole semester" is left alone.
+  function weekForSection(id) {
+    if (state.week < 0 || !state.weeks.length) return;
+    const its = state.items.filter((i) => i.sections.some((s) => s.section_id === id));
+    if (!its.length) return;
+    const meetsIn = (w) => its.some((it) => {
+      const d = addDays(w, DAYS.findIndex((x) => x.k === it.day));
+      return activeOn(it, d) && !noClassOn(d);
+    });
+    if (meetsIn(state.weeks[state.week])) return;
+    const thisWeek = mondayOf(new Date());
+    let idx = state.weeks.findIndex((w) => w >= thisWeek && meetsIn(w));
+    if (idx === -1) idx = state.weeks.findIndex(meetsIn);
+    if (idx !== -1) { state.week = idx; $("weekSel").value = String(idx); }
   }
 
   // One block per day/time; sections that share a slot (cross-listed courses) merge into one block.
@@ -904,6 +1138,13 @@
     const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const start = parseISO(state.meta.term_start), end = parseISO(state.meta.term_end);
     if (!start || today < start || today > end) { el.hidden = true; return; }
+    const off = noClassOn(today);
+    if (off) {
+      el.hidden = false;
+      el.className = "status free";
+      el.textContent = `No classes today: ${off.name}`;
+      return;
+    }
     const dayKey = DAYS[(now.getDay() + 6) % 7].k;
     const t = now.getHours() * 60 + now.getMinutes();
     const todays = state.items.filter((i) => i.day === dayKey && activeOn(i, today)).sort((a, b) => a.s - b.s);
@@ -970,10 +1211,14 @@
     const termStart = state.meta.term_start, termEnd = state.meta.term_end;
     days.forEach((d, i) => {
       const date = dates[i];
-      const dayItems = items.filter((it) => it.day === d.k && (!date || activeOn(it, date)));
+      const holiday = date ? noClassOn(date) : null;
+      const exams = date && !holiday && isExamDay(iso(date));
+      const dayItems = holiday ? [] : items.filter((it) => it.day === d.k && (!date || activeOn(it, date)));
       layout(dayItems);
-      const off = date && dayItems.length === 0 && items.some((it) => it.day === d.k);
+      const off = holiday || exams || (date && dayItems.length === 0 && items.some((it) => it.day === d.k));
       html += `<div class="daycol${off ? " off" : ""}" style="height:${height}px;${lines}">`;
+      if (holiday) html += `<p class="dayoff"><strong>${esc(holiday.name)}</strong>No classes</p>`;
+      else if (exams && dayItems.length === 0) html += `<p class="dayoff"><strong>Final exams</strong>Exam times aren't listed</p>`;
       for (const it of dayItems) {
         const y = (it.s - top) * PX_PER_MIN, h = Math.max((it.e - it.s) * PX_PER_MIN - 2, 18);
         const w = 100 / it.cols;
@@ -982,8 +1227,9 @@
         const secLine = it.sections.length > 1 ? `${it.sections.length} sections together` : `${first.section} ${COMPONENTS[first.component] ?? first.component}`;
         const partial = (first.start_date && first.start_date !== termStart) || (first.end_date && first.end_date !== termEnd);
         const dateLine = partial && it.start && it.end ? `${fmtDate(it.start)}\u2013${fmtDate(it.end)}` : "";
-        const label = `${codes.join(" and ")}, ${secLine}, ${d.name} ${fmtTime(it.s)} to ${fmtTime(it.e)}${dateLine ? `, ${dateLine}` : ""}`;
-        html += `<button type="button" class="ev ${hueFor(codes[0])}${h < 40 ? " short" : ""}" data-key="${esc(itemKey(it))}"
+        const hl = state.highlight != null && it.sections.some((x) => x.section_id === state.highlight);
+        const label = `${codes.join(" and ")}, ${secLine}, ${d.name} ${fmtTime(it.s)} to ${fmtTime(it.e)}${dateLine ? `, ${dateLine}` : ""}${hl ? ", the class you searched for" : ""}`;
+        html += `<button type="button" class="ev ${hueFor(codes[0])}${h < 40 ? " short" : ""}${hl ? " hl" : ""}" data-key="${esc(itemKey(it))}"
           style="top:${y}px;height:${h}px;left:calc(${it.col * w}% + var(--ev-inset));width:calc(${w}% - 2 * var(--ev-inset))" aria-label="${esc(label)}">
           <span class="ev-code">${esc(codes.join(" / "))}</span>
           <span class="ev-line">${fmtRange(it.s, it.e)}${h >= 58 ? "" : ` ${esc(secLine)}`}</span>
@@ -1046,7 +1292,7 @@
         ["Section", `${m.section}, ${COMPONENTS[m.component] ?? m.component}`],
         ["Meets", `${days} ${fmtTime(mins(m.start_time))} \u2013 ${fmtTime(mins(m.end_time))}`],
         ["Dates", s && e ? `${fmtDate(s)} \u2013 ${fmtDate(e)}, ${e.getFullYear()}` : ""],
-        ["Instructor", m.instructor],
+        ["Instructor", fmtInstructor(m.instructor)],
         ["Enrollment", [m.status, seats].filter(Boolean).join(": ")],
         ["Class number", m.class_nbr],
       ].filter(([, v]) => v);
@@ -1061,6 +1307,8 @@
   }
 
   boot();
+  // Offline support (sw.js keeps the page and data). Needs https or localhost.
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
 </script>
 </body>

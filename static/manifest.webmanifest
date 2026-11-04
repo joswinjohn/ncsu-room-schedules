@@ -1,0 +1,16 @@
+{
+  "name": "NC State Room Schedules",
+  "short_name": "Rooms",
+  "description": "Class schedules for every NC State classroom, free-room search, and where to find a class.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#121618",
+  "theme_color": "#121618",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

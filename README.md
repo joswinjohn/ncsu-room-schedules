@@ -95,8 +95,9 @@ The map uses [MapLibre GL JS](https://maplibre.org) (a copy is in `static/vendor
 license) with [OpenFreeMap](https://openfreemap.org)'s vector tiles of OpenStreetMap data, which
 are free with no account or API key. Vector tiles keep street names upright when the map turns.
 Viewing the map loads the style and tiles from OpenFreeMap's servers, so they see the visitor's IP
-address and which area is being viewed. To use another provider, change `MAP_STYLES` in
-`static/index.html` to any MapLibre style URL. Offline, or if OpenFreeMap can't be reached, the map
+address and which area is being viewed. The page recolours OpenFreeMap's Positron style to look like
+Apple Maps (`appleStyle` and the `APPLE_LIGHT` / `APPLE_DARK` palettes in `static/index.html`, which
+expect OpenMapTiles layers); `MAP_STYLE_URL` sets the base style. Offline, or if OpenFreeMap can't be reached, the map
 shows the pins on a plain background. The map needs WebGL; without it, the list still works.
 
 ## Finding a free room

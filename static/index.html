@@ -8,32 +8,32 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="Rooms">
-<meta name="theme-color" content="#FAFAF9" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F7F8FA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1014" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  /* Design tokens. Neutral surfaces, one accent (NC State red) used sparingly: the room you're
+  /* Design tokens. Near-neutral surfaces with a very faint cool (blue) cast, one accent (NC State red) used sparingly: the room you're
      looking at, "now", and focus. Borders are 1px rings drawn with box-shadow so cards and
      controls sit on the page instead of being outlined on it. */
   :root {
-    --paper: #FAFAF9;
+    --paper: #F7F8FA;
     --surface: #FFFFFF;
-    --sunken: #F2F2F0;
-    --ink: #171717;
-    --muted: #6B6B6B;
-    --faint: #A3A3A3;
-    --rule: #ECECEA;
-    --rule-strong: #DADAD7;
+    --sunken: #EFF1F4;
+    --ink: #15181D;
+    --muted: #636A73;
+    --faint: #A0A5AD;
+    --rule: #E8EAEE;
+    --rule-strong: #D6D9DF;
     --red: #CC0000;
     --on-red: #FFFFFF;
-    --ring: rgba(0, 0, 0, 0.08);
-    --ring-strong: rgba(0, 0, 0, 0.14);
+    --ring: rgba(10, 16, 26, 0.08);
+    --ring-strong: rgba(10, 16, 26, 0.15);
     --edge: 0 0 0 1px var(--ring);
-    --card: 0 0 0 1px var(--ring), 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px -2px rgba(0, 0, 0, 0.04);
-    --raised: 0 0 0 1px var(--ring), 0 1px 2px rgba(0, 0, 0, 0.06);
-    --pop: 0 0 0 1px var(--ring), 0 8px 20px -6px rgba(0, 0, 0, 0.14), 0 24px 56px -12px rgba(0, 0, 0, 0.2);
+    --card: 0 0 0 1px var(--ring), 0 1px 2px rgba(10, 16, 26, 0.04), 0 2px 6px -2px rgba(10, 16, 26, 0.05);
+    --raised: 0 0 0 1px var(--ring), 0 1px 2px rgba(10, 16, 26, 0.06);
+    --pop: 0 0 0 1px var(--ring), 0 8px 20px -6px rgba(10, 16, 26, 0.15), 0 24px 56px -12px rgba(10, 16, 26, 0.22);
     --focus: 0 0 0 1px var(--surface), 0 0 0 3px color-mix(in srgb, var(--red) 70%, transparent);
     --c0: #3E5BC2; --c1: #00806F; --c2: #627019;
     --c3: #C94A0A; --c4: #A31A1A; --c5: #36778E;
@@ -42,28 +42,31 @@
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-    --body: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    /* Titles: page and section headings, room numbers, building names. Space Mono has only 400
+       and 700, and is already wide, so titles use 700 and aren't tightened much. */
+    --title: "Space Mono", ui-monospace, "SF Mono", Menlo, monospace;
     --cond: var(--body);
-    --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
-    --glass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.75'/%3E%3Cpath d='m10.5 10.5 3 3'/%3E%3C/svg%3E");
+    --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%238A9099' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+    --glass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%238A9099' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.75'/%3E%3Cpath d='m10.5 10.5 3 3'/%3E%3C/svg%3E");
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper: #0B0B0C;
-      --surface: #141415;
-      --sunken: #1C1C1E;
-      --ink: #EDEDED;
-      --muted: #A0A0A0;
-      --faint: #6A6A6A;
-      --rule: #222224;
-      --rule-strong: #303033;
+      --paper: #0D1014;
+      --surface: #15191F;
+      --sunken: #1C2128;
+      --ink: #ECEEF1;
+      --muted: #A1A7AF;
+      --faint: #6B727C;
+      --rule: #232830;
+      --rule-strong: #2E343D;
       --red: #F2463C;
-      --ring: rgba(255, 255, 255, 0.08);
-      --ring-strong: rgba(255, 255, 255, 0.16);
-      --card: 0 0 0 1px var(--ring), 0 1px 2px rgba(0, 0, 0, 0.5);
-      --raised: 0 0 0 1px var(--ring), 0 1px 2px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      --pop: 0 0 0 1px var(--ring-strong), 0 12px 32px -8px rgba(0, 0, 0, 0.7), 0 24px 64px -12px rgba(0, 0, 0, 0.6);
+      --ring: rgba(210, 222, 240, 0.09);
+      --ring-strong: rgba(210, 222, 240, 0.17);
+      --card: 0 0 0 1px var(--ring), 0 1px 2px rgba(2, 4, 8, 0.5);
+      --raised: 0 0 0 1px var(--ring), 0 1px 2px rgba(2, 4, 8, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      --pop: 0 0 0 1px var(--ring-strong), 0 12px 32px -8px rgba(2, 4, 8, 0.7), 0 24px 64px -12px rgba(2, 4, 8, 0.6);
       --c0: #8FA0F0; --c1: #3FC4AE; --c2: #B4C25A;
       --c3: #F28C52; --c4: #EE7373; --c5: #7DB9CF;
       --tint: 16%;
@@ -110,7 +113,7 @@
   .brand { display: flex; flex-direction: column; gap: 2px; padding: 22px 20px 14px; }
   .brand h1 {
     display: flex; align-items: center; gap: 9px;
-    margin: 0; font: 600 17px/1.2 var(--body); letter-spacing: -0.015em;
+    margin: 0; font: 700 17px/1.2 var(--title); letter-spacing: -0.015em;
   }
   .brand h1::before {
     content: ""; width: 14px; height: 14px; flex: none; border-radius: 4px;
@@ -191,7 +194,7 @@
   }
   .bldg { padding: 14px 0 6px; }
   .bldg + .bldg { box-shadow: inset 0 1px 0 var(--rule); }
-  .bldg h2 { margin: 0 0 9px; font: 600 13px/1.3 var(--body); letter-spacing: -0.005em; }
+  .bldg h2 { margin: 0 0 9px; font: 700 13px/1.3 var(--title); letter-spacing: -0.01em; }
   .bldg h2 .n { font-weight: 400; color: var(--faint); font-variant-numeric: tabular-nums; }
   .bldg h2 .dist { float: right; margin-left: 8px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
   .rooms { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -230,7 +233,7 @@
 
   /* ---------- empty / notices ---------- */
   .notice { max-width: 34rem; margin-top: 14vh; }
-  .notice h2 { font: 600 26px/1.15 var(--body); letter-spacing: -0.025em; margin: 0 0 10px; }
+  .notice h2 { font: 700 26px/1.15 var(--title); letter-spacing: -0.02em; margin: 0 0 10px; }
   .notice p { margin: 0 0 10px; color: var(--muted); font-size: 15px; line-height: 1.6; }
   .notice code { font: 500 13px/1 ui-monospace, "SF Mono", Menlo, monospace; background: var(--sunken); box-shadow: var(--edge); padding: 4px 7px; border-radius: var(--r-sm); color: var(--ink); }
 
@@ -244,8 +247,8 @@
     border-radius: var(--r-xl); box-shadow: var(--card);
   }
   .placard::before { content: ""; position: absolute; top: 0; left: 22px; width: 28px; height: 3px; border-radius: 0 0 3px 3px; background: var(--red); }
-  .placard-num { font: 600 56px/0.95 var(--body); font-variant-numeric: tabular-nums; letter-spacing: -0.045em; }
-  .placard-num.long { font-size: 30px; line-height: 1.05; letter-spacing: -0.03em; }
+  .placard-num { font: 700 56px/0.95 var(--title); letter-spacing: -0.04em; }
+  .placard-num.long { font-size: 30px; line-height: 1.05; letter-spacing: -0.02em; }
   .placard-bldg { font: 500 14px/1.3 var(--body); color: var(--muted); }
   .room-info { display: grid; grid-template-columns: minmax(0, 1fr); align-content: end; gap: 12px; flex: 1; min-width: 260px; } /* long week labels mustn't widen the page */
   .room-info p { margin: 0; }
@@ -367,7 +370,7 @@
   /* ---------- room facts and building access ---------- */
   .about { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 12px; margin: 0 0 16px; }
   .about section { padding: 14px 16px; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--card); min-width: 0; }
-  .about h3 { margin: 0 0 8px; font: 500 11.5px/1.2 var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+  .about h3 { margin: 0 0 8px; font: 700 11.5px/1.2 var(--title); letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
   .about p { margin: 0 0 6px; font-size: 13.5px; }
   .about p:last-child { margin-bottom: 0; }
   .about .why, .about .src { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
@@ -389,7 +392,7 @@
   .map-fail { margin: 0; padding: 0 20px 12px; }
   .mapview { display: grid; gap: 12px; }
   .map-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
-  .map-head h2 { margin: 0; font: 600 20px/1.2 var(--body); letter-spacing: -0.02em; }
+  .map-head h2 { margin: 0; font: 700 20px/1.2 var(--title); letter-spacing: -0.02em; }
   .map-note { margin: 0; color: var(--muted); font-size: 13px; }
   #map { height: calc(100vh - 104px); min-height: 360px; border-radius: var(--r-lg); box-shadow: var(--card); overflow: hidden; }
   /* MapLibre's stylesheet loads after this one, so these use #map to win. */
@@ -488,7 +491,7 @@
     opacity: 0; transition: opacity 250ms ease;
   }
   .me.has-heading .me-cone { opacity: 1; }
-  .map-pop h3 { margin: 0 26px 2px 0; font: 600 16px/1.25 var(--body); letter-spacing: -0.015em; }
+  .map-pop h3 { margin: 0 26px 2px 0; font: 700 16px/1.25 var(--title); letter-spacing: -0.015em; }
   .map-pop p { margin: 0 0 10px; color: var(--muted); font-size: 12.5px; }
 
   /* ---------- details dialog ---------- */
@@ -499,7 +502,7 @@
     box-shadow: var(--pop);
     overscroll-behavior: contain;
   }
-  dialog::backdrop { background: rgba(8, 8, 10, 0.42); }
+  dialog::backdrop { background: rgba(6, 8, 12, 0.45); }
   .d-close {
     position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
     display: grid; place-items: center;
@@ -507,7 +510,7 @@
   }
   .d-sec { padding: 22px 24px 20px; }
   .d-sec + .d-sec { box-shadow: inset 0 1px 0 var(--rule); }
-  .d-sec h2 { margin: 0 44px 2px 0; font: 600 21px/1.2 var(--body); letter-spacing: -0.025em; }
+  .d-sec h2 { margin: 0 44px 2px 0; font: 700 21px/1.2 var(--title); letter-spacing: -0.02em; }
   .d-title { margin: 0 0 16px; color: var(--muted); }
   dl { display: grid; grid-template-columns: 7.5rem 1fr; gap: 8px 12px; margin: 0; font-size: 13.5px; }
   dt { color: var(--muted); }
@@ -585,7 +588,7 @@
     }
     .back { height: 44px; padding: 0 16px 0 10px; font-size: 15px; }
     .back span[aria-hidden] { font-size: 24px; }
-    .room-bar-title { display: block; margin: 0; min-width: 0; font: 600 16px/1.2 var(--body); letter-spacing: -0.015em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .room-bar-title { display: block; margin: 0; min-width: 0; font: 700 16px/1.2 var(--title); letter-spacing: -0.015em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .room-bar-title:focus { outline: none; }
 
     .room-head { gap: 12px; margin-bottom: 14px; }
@@ -1453,10 +1456,8 @@
   // keyboard- and screen-reader-friendly way to browse, and still works if the map can't load.
   // If OpenFreeMap can't be reached (offline, or the service is down) the map shows the building
   // pins on a plain background.
-  const MAP_STYLES = {
-    light: "https://tiles.openfreemap.org/styles/positron",
-    dark: "https://tiles.openfreemap.org/styles/dark",
-  };
+  // One base style (OpenFreeMap's Positron), recoloured to look like Apple Maps; see appleStyle.
+  const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
   const DARK = matchMedia("(prefers-color-scheme: dark)");
   // places: building -> { name, lat, lon, rooms }. shown: building -> rooms on the map right now.
   // viewMode (phone only): "list" or "map". On wider screens the map shows whenever no room is open.
@@ -1536,53 +1537,79 @@
     const map = mapState.map, seq = ++mapState.styleSeq;
     const blank = { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": cssVar("--surface") } }] };
     const dark = DARK.matches;
-    fetch(MAP_STYLES[dark ? "dark" : "light"], { signal: AbortSignal.timeout?.(6000) })
+    fetch(MAP_STYLE_URL, { signal: AbortSignal.timeout?.(6000) })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))
-      .then((style) => (dark ? tuneDarkStyle(style) : style))
+      .then((style) => appleStyle(style, dark ? APPLE_DARK : APPLE_LIGHT))
       .catch(() => blank)
       .then((style) => { if (seq === mapState.styleSeq) map.setStyle(style, { diff: false }); });
   }
 
-  // OpenFreeMap's dark style is nearly black on black: buildings are darker than the ground and
-  // small roads barely show. Lift it into clear steps (ground, then buildings, then roads, with
-  // labels readable on top), with a hint of green for parks and blue for water.
-  const DARK_GROUND = "#151517";
-  const DARK_TUNE = {
-    background: { "background-color": DARK_GROUND },
-    landuse_residential: { "fill-color": "#19191C", "fill-opacity": 1 },
-    landuse_park: { "fill-color": "#17211A" },
-    landcover_wood: { "fill-color": "#17211A", "fill-opacity": 0.7 },
-    water: { "fill-color": "#13202D" },
-    waterway: { "line-color": "#1B2C3D" },
-    building: { "fill-color": "#2D2D33", "fill-outline-color": "#45454D" },
-    road_area_pier: { "fill-color": DARK_GROUND },
-    road_pier: { "line-color": DARK_GROUND },
-    highway_path: { "line-color": "#2B2B31" },
-    highway_minor: { "line-color": "#36363D" },
-    highway_major_casing: { "line-color": "#4A4A53" },
-    highway_major_inner: { "line-color": "#3D3D45" },
-    highway_major_subtle: { "line-color": "#3D3D45" },
-    highway_motorway_casing: { "line-color": "#4A4A53" },
-    highway_motorway_inner: { "line-color": "#3D3D45" },
-    highway_motorway_subtle: { "line-color": "#3D3D45" },
-    railway: { "line-color": "#3A3A42" },
-    railway_minor: { "line-color": "#3A3A42" },
-    railway_transit: { "line-color": "#3A3A42" },
-    railway_dashline: { "line-color": DARK_GROUND },
-    railway_minor_dashline: { "line-color": DARK_GROUND },
-    railway_transit_dashline: { "line-color": DARK_GROUND },
-    highway_name_other: { "text-color": "#8F8F97", "text-halo-color": DARK_GROUND },
-    highway_name_motorway: { "text-color": "#9A9AA2", "text-halo-color": DARK_GROUND },
-    water_name: { "text-color": "#5F7C97", "text-halo-color": DARK_GROUND },
+  // Apple Maps' look: flat fills with no outlines, green grass and parks, buildings a step off the
+  // ground, and uppercase, letter-spaced street names. In dark mode the ground is slate blue,
+  // buildings lighter, and roads darker than the ground with no casing; in light mode it's warm
+  // off-white ground, white roads with a faint edge, and yellow motorways.
+  const APPLE_DARK = {
+    ground: "#36495F", building: "#506C8C", buildingEdge: "#506C8C",
+    green: "#1C5B50", wood: "#19544A", water: "#1F3D63", waterLabel: "#7FA3CC",
+    road: "#2B3340", casing: "#2B3340", path: "#31425A", motorway: "#262D38", motorwayCasing: "#262D38",
+    rail: "#2B3340", boundary: "#5A6D84",
+    roadLabel: "#C9D0DA", placeLabel: "#E6E9EE", halo: "#2B3340",
   };
-  function tuneDarkStyle(style) {
+  const APPLE_LIGHT = {
+    ground: "#F5F3EE", building: "#E6E3DD", buildingEdge: "#DCD8D1",
+    green: "#CDE8BF", wood: "#BFE0AD", water: "#A4D3F5", waterLabel: "#3F7FB5",
+    road: "#FFFFFF", casing: "#DEDAD3", path: "#FCFBF8", motorway: "#FDDB7A", motorwayCasing: "#E6BD5C",
+    rail: "#D3CFC8", boundary: "#B8B3AA",
+    roadLabel: "#6E6E73", placeLabel: "#3A3A3F", halo: "#FFFFFF",
+  };
+  function appleStyle(style, c) {
+    const fill = (color, extra = {}) => ({ "fill-color": color, "fill-outline-color": color, ...extra });
+    const line = (color) => ({ "line-color": color });
+    const label = (color) => ({ "text-color": color, "text-halo-color": c.halo, "text-halo-width": 1.2, "text-halo-blur": 0 });
+    const paintFor = (id) => {
+      if (id === "background") return { "background-color": c.ground };
+      if (id === "park" || id === "landcover_grass") return fill(c.green);
+      if (id === "landcover_wood") return fill(c.wood, { "fill-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0, 12, 1] });
+      if (id === "landuse_residential" || id === "road_area_pier") return fill(c.ground);
+      if (id === "water") return fill(c.water);
+      if (id === "waterway") return line(c.water);
+      if (id === "building") return fill(c.building, { "fill-outline-color": c.buildingEdge });
+      if (id === "road_pier") return line(c.ground);
+      // Footpaths stay quiet, as in Apple Maps: a campus is criss-crossed with them.
+      if (id === "highway_path") return { ...line(c.path), "line-opacity": 0.8, "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 15, 0.6, 20, 5] };
+      if (id.includes("motorway")) return line(id.includes("casing") ? c.motorwayCasing : c.motorway);
+      if (id.includes("casing")) return line(c.casing);
+      if (id.startsWith("highway_") || id.startsWith("aeroway-")) return id === "aeroway-area" ? fill(c.road) : line(c.road);
+      if (id.startsWith("railway")) return line(id.endsWith("dashline") ? c.ground : c.rail);
+      if (id.startsWith("boundary")) return line(c.boundary);
+      if (id.startsWith("highway-name")) return label(c.roadLabel);
+      if (id.startsWith("water")) return label(c.waterLabel);
+      if (id.startsWith("label_") || id === "airport") return label(c.placeLabel);
+      return null;
+    };
+    const layers = [];
     for (const layer of style.layers ?? []) {
-      const tune = DARK_TUNE[layer.id] ?? (layer.id.startsWith("place_") ? { "text-color": "#A2A2AA", "text-halo-color": DARK_GROUND } : null);
-      if (!tune) continue;
-      layer.paint = { ...layer.paint, ...tune };
-      // The wood texture isn't in the style's sprite sheet, so it would draw nothing at all.
-      if (layer.id === "landcover_wood") delete layer.paint["fill-pattern"];
+      layers.push(layer);
+      // Positron leaves grass, gardens and sports fields the colour of the ground; Apple Maps
+      // paints them green, which is most of what makes a campus look like one.
+      if (layer.id === "park") {
+        layers.push({
+          id: "landcover_grass", type: "fill", source: "openmaptiles", "source-layer": "landcover",
+          filter: ["==", ["get", "class"], "grass"],
+        }, {
+          id: "landuse_pitch", type: "fill", source: "openmaptiles", "source-layer": "landuse",
+          filter: ["match", ["get", "class"], ["pitch", "playground"], true, false],
+        });
+      }
     }
+    for (const layer of layers) {
+      const paint = paintFor(layer.id === "landuse_pitch" ? "park" : layer.id);
+      if (paint) layer.paint = { ...layer.paint, ...paint };
+      if (layer.id.startsWith("highway-name")) {
+        layer.layout = { ...layer.layout, "text-transform": "uppercase", "text-letter-spacing": 0.08, "text-font": ["Noto Sans Bold"] };
+      }
+    }
+    style.layers = layers;
     return style;
   }
 
@@ -1604,7 +1631,7 @@
     loadMapStyle();
     DARK.addEventListener("change", () => loadMapStyle());
     map.on("style.load", addAccuracyLayer);
-    // Some styles name icons they don't ship (OpenFreeMap's dark style has one); draw nothing.
+    // Some styles name icons they don't ship; draw nothing rather than log a warning.
     map.on("styleimagemissing", (e) => { if (!map.hasImage(e.id)) map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) }); });
 
     map.addControl(mapButtons([
